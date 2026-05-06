@@ -1,0 +1,390 @@
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 8px;
+  border-right: 0.5px solid var(--border-subtle);
+  background-color: var(--bg-sidebar);
+}
+
+.section {
+  margin-bottom: 22px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sectionHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.addTagButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--text-tertiary);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tagsSection:hover .addTagButton,
+.addTagButton:focus-visible {
+  opacity: 1;
+}
+
+.addTagButton:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.nav {
+  display: grid;
+  gap: 4px;
+}
+
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.navLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inboxBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background-color: var(--tag-orange);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.navItem:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.active {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background-color: var(--accent);
+}
+
+.tags {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tagItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  cursor: default;
+}
+
+.tagItem:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.tagItem span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tagDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.tagIcon {
+  flex: 0 0 auto;
+}
+
+.importArea {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.importButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 6px 5px 9px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.importButton:hover {
+  background-color: var(--bg-secondary);
+}
+
+.importLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.importLabel svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.shortcut {
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.popover {
+  position: absolute;
+  z-index: 80;
+  top: 112px;
+  left: 10px;
+  right: 10px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--bg-primary) 96%, transparent);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.popoverField {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.popoverField input,
+.popoverField select {
+  width: 100%;
+  height: 30px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.popoverField input {
+  padding: 0 8px;
+}
+
+.colorGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.colorSwatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.colorActive {
+  box-shadow:
+    0 0 0 2px var(--bg-primary),
+    0 0 0 4px var(--accent);
+}
+
+.customColorButton {
+  height: 20px;
+  padding: 0 7px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 5px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.customColorButton:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.colorInput {
+  width: 44px;
+  padding: 0;
+}
+
+.iconSelectWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.iconSelectWrap svg,
+.emptyIconDot {
+  position: absolute;
+  left: 9px;
+  z-index: 1;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.emptyIconDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--text-tertiary);
+}
+
+.iconSelectWrap select {
+  padding-left: 30px;
+}
+
+.popoverActions,
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.popoverActions button,
+.confirmActions button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.popoverActions button:hover,
+.confirmActions button:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.primaryButton {
+  background-color: var(--accent) !important;
+  color: #ffffff !important;
+}
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.confirmDialog {
+  width: min(360px, 100%);
+  padding: 16px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 10px;
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.confirmDialog p {
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dangerButton {
+  background-color: #d92d20 !important;
+  color: #ffffff !important;
+}

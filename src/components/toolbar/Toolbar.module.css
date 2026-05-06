@@ -1,0 +1,172 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  height: 52px;
+  padding: 0 24px;
+  border-bottom: 0.5px solid var(--border-subtle);
+  background-color: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.caption {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-feature-settings: "ss01", "cv11";
+  line-height: 1.2;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filterChip span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.filterDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: var(--tag-color);
+  flex: 0 0 auto;
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 2px;
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+  box-shadow: inset 0 0 0 0.5px var(--border-subtle);
+}
+
+.segmentButton {
+  height: 24px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segmentActive {
+  border: 0.5px solid var(--border-subtle);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.separator {
+  width: 0.5px;
+  height: 22px;
+  background-color: var(--border-subtle);
+}
+
+.navigation {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border: 0.5px solid var(--border-default);
+  border-radius: 6px;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+.iconButton,
+.todayButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.iconButton {
+  width: 28px;
+}
+
+.todayButton {
+  border-right: 0.5px solid var(--border-default);
+  border-left: 0.5px solid var(--border-default);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.iconButton:hover,
+.todayButton:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background-color: var(--accent);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.createButton:hover {
+  filter: brightness(1.05);
+}

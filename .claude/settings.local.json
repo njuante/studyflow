@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm *)",
+      "PowerShell(rustc *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell($env:PATH -split \";\" | Where-Object { $_ -ne \"\" })",
+      "PowerShell(choco *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:1420/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty StatusCode)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:1420/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty Content | Select-Object -First 1)",
+      "PowerShell(Copy-Item *)"
+    ]
+  }
+}

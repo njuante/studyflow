@@ -1,0 +1,231 @@
+.weekView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 0.5px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-primary);
+}
+
+.dayHeaders {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  border-bottom: 0.5px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+}
+
+.timeColumnHeader {
+  border-right: 0.5px solid var(--border-subtle);
+}
+
+.dayHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px 12px;
+  border-right: 0.5px solid var(--border-subtle);
+  transition: background-color 80ms ease;
+}
+
+.dayHeader:last-child {
+  border-right: 0;
+}
+
+.dayHeaderToday {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.dayHeaderLabel {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dayHeaderToday .dayHeaderLabel {
+  color: currentColor;
+}
+
+.dayHeaderNumber {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.gridScroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  position: relative;
+  min-height: 960px;
+}
+
+.timeColumn {
+  position: relative;
+  border-right: 0.5px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.hourLabel {
+  height: 60px;
+  padding: 2px 6px 0 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayColumn {
+  position: relative;
+  border-right: 0.5px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background-color 80ms ease;
+}
+
+.dayColumn:last-child {
+  border-right: 0;
+}
+
+.dayColumn:hover {
+  background-color: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.dayColumnToday {
+  background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 0.5px solid var(--border-subtle);
+  pointer-events: none;
+}
+
+.halfHourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed
+    color-mix(in srgb, var(--border-subtle) 58%, transparent);
+  pointer-events: none;
+}
+
+.eventsLayer {
+  position: absolute;
+  top: 0;
+  left: 56px;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.eventsColumn {
+  position: relative;
+  min-width: 0;
+}
+
+.eventBlock {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 0;
+  border-left: 3px solid color-mix(in srgb, var(--event-color) 68%, black);
+  border-radius: 4px;
+  background: var(--event-color);
+  color: #ffffff;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    filter 80ms ease,
+    transform 80ms ease;
+}
+
+.eventBlock:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.eventTitle {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.eventTime {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+  opacity: 0.85;
+}
+
+.untaggedEvent {
+  background: #e5e5ea;
+  color: var(--text-primary);
+  border-left-color: #b8b8be;
+}
+
+:root[data-theme="dark"] .untaggedEvent {
+  background: #3a3a3c;
+  color: var(--text-primary);
+  border-left-color: #5a5a5e;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid #ff3b30;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nowDotRail {
+  position: absolute;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.nowDot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ff3b30;
+}

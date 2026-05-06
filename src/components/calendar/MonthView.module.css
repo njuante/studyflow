@@ -1,0 +1,138 @@
+.monthView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 1px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  border-radius: 16px 16px 0 0;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.weekday {
+  padding: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(100px, 1fr));
+  gap: 1px;
+  flex: 1;
+  min-height: 0;
+  padding: 1px;
+  border-radius: 0 0 16px 16px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  background: var(--bg-primary);
+  transition: background-color 80ms ease;
+  cursor: pointer;
+}
+
+.dayCell:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+}
+
+.outsideMonth {
+  opacity: 0.4;
+}
+
+.dayHeader {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
+.dayNumber {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.todayBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.eventPill {
+  width: 100%;
+  height: 18px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 3px;
+  font-size: 10.5px;
+  line-height: 18px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background-color 80ms ease,
+    color 80ms ease,
+    transform 80ms ease;
+  cursor: pointer;
+}
+
+.eventPill {
+  background: color-mix(in srgb, var(--event-color) 16%, transparent);
+  color: color-mix(in srgb, var(--event-color) 72%, black);
+}
+
+:root[data-theme="dark"] .eventPill {
+  color: color-mix(in srgb, var(--event-color) 72%, white);
+}
+
+.untaggedEvent {
+  background: #e5e5ea;
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .untaggedEvent {
+  background: #3a3a3c;
+  color: var(--text-primary);
+}
+
+.moreEvents {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  line-height: 1.4;
+  padding: 0 2px;
+}

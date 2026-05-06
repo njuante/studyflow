@@ -1,0 +1,106 @@
+.titlebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 0.5px solid var(--border-subtle);
+  background-color: color-mix(in srgb, var(--bg-sidebar) 82%, transparent);
+  backdrop-filter: blur(22px) saturate(1.25);
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+
+.leading,
+.trailing {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.trailing {
+  justify-content: flex-end;
+}
+
+.trafficLights {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  color: rgba(0, 0, 0, 0.62);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+}
+
+.light span {
+  opacity: 0;
+  transform: translateY(-0.5px);
+}
+
+.trafficLights:hover .light span {
+  opacity: 1;
+}
+
+.red {
+  background-color: #ff5f57;
+}
+
+.amber {
+  background-color: #febc2e;
+}
+
+.green {
+  background-color: #28c840;
+}
+
+.windowTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+}
+
+.windowTitle svg {
+  flex: 0 0 auto;
+}
+
+.themeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+.themeButton:hover {
+  background-color: var(--accent-hover);
+  color: var(--text-primary);
+}
