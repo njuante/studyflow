@@ -77,10 +77,12 @@ fn default_true() -> bool {
 pub struct StudyEvent {
     pub id: String,
     pub title: String,
+    #[serde(default)]
     pub description: Option<String>,
     pub date: String,
     pub start_time: String,
     pub duration_minutes: i64,
+    #[serde(default)]
     pub tag_id: Option<String>,
     #[serde(rename = "type")]
     pub event_type: StudyEventType,

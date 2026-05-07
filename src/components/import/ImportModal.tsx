@@ -39,6 +39,7 @@ import {
   type ScheduledBlock,
 } from "../../lib/parser";
 import { toIsoDate } from "../../lib/dates";
+import { formatError } from "../../lib/formatError";
 import type { StudyEvent } from "../../types";
 import styles from "./ImportModal.module.css";
 
@@ -500,9 +501,8 @@ export function ImportModal({
                   onImportComplete(events.length);
                   onClose();
                 } catch (error) {
-                  const message =
-                    error instanceof Error ? error.message : String(error);
-                  setSubmitError(`No se pudo importar: ${message}`);
+                  console.error("[ImportModal] Bulk create failed:", error);
+                  setSubmitError(`No se pudo importar: ${formatError(error)}`);
                 } finally {
                   setIsSubmitting(false);
                 }

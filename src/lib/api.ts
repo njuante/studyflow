@@ -63,12 +63,24 @@ export function getEventsInRange(
   });
 }
 
+function normalizeEvent(event: StudyEvent): StudyEvent {
+  return {
+    ...event,
+    description: event.description ?? "",
+    tagId: event.tagId ?? null,
+    scheduled: event.scheduled ?? true,
+    completed: event.completed ?? false,
+    completedAt: event.completedAt ?? null,
+    lockDuringFocus: event.lockDuringFocus ?? false,
+  };
+}
+
 export function createEvent(event: StudyEvent): Promise<StudyEvent> {
-  return invoke<StudyEvent>("create_event", { event });
+  return invoke<StudyEvent>("create_event", { event: normalizeEvent(event) });
 }
 
 export function updateEvent(event: StudyEvent): Promise<StudyEvent> {
-  return invoke<StudyEvent>("update_event", { event });
+  return invoke<StudyEvent>("update_event", { event: normalizeEvent(event) });
 }
 
 export function deleteEvent(id: string): Promise<void> {
@@ -76,7 +88,9 @@ export function deleteEvent(id: string): Promise<void> {
 }
 
 export function bulkCreateEvents(events: StudyEvent[]): Promise<number> {
-  return invoke<number>("bulk_create_events", { events });
+  return invoke<number>("bulk_create_events", {
+    events: events.map(normalizeEvent),
+  });
 }
 
 export function getTodayEvents(): Promise<StudyEvent[]> {

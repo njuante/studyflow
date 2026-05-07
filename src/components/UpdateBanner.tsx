@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { ArrowUpCircle, X } from "lucide-react";
 
+import { formatError } from "../lib/formatError";
 import styles from "./UpdateBanner.module.css";
 
 interface UpdateState {
@@ -94,11 +95,11 @@ export function UpdateBanner() {
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      console.error("[UpdateBanner] Update install failed:", error);
       setState((current) => ({
         ...current,
         downloading: false,
-        error: message,
+        error: formatError(error),
       }));
     }
   }

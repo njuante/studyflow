@@ -17,7 +17,8 @@
       "Bash(npm test *)",
       "Bash(npm run *)",
       "Bash(cargo check *)",
-      "Bash(cargo add *)"
+      "Bash(cargo add *)",
+      "Bash(echo \"tsc=$?\")"
     ]
   }
 }
