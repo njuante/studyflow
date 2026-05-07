@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from "react";
 import { isTauri } from "@tauri-apps/api/core";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -21,6 +22,8 @@ import {
 } from "lucide-react";
 
 import { useTags } from "../../hooks/useTags";
+import { useTapEffect } from "../../hooks/useTapEffect";
+import { useMotionPresets } from "../../lib/motion";
 import { bulkCreateEvents } from "../../lib/api";
 import {
   JSON_TEMPLATE,
@@ -141,6 +144,7 @@ function blockToEvent(block: ScheduledBlock): StudyEvent {
     scheduled: block.scheduled,
     completed: false,
     completedAt: null,
+    lockDuringFocus: false,
   };
 }
 
@@ -150,6 +154,8 @@ export function ImportModal({
   open,
 }: ImportModalProps) {
   const { tags, getTagById } = useTags();
+  const { springs, fades } = useMotionPresets();
+  const tapProps = useTapEffect();
   const [step, setStep] = useState<WizardStep>("detect");
   const [rawInput, setRawInput] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -303,16 +309,28 @@ export function ImportModal({
     reader.readAsText(file);
   }
 
-  if (!open) return null;
-
   const stepNumber = step === "detect" ? 1 : step === "configure" ? 2 : 3;
   const stepLabel = step === "detect" ? "Detección" : step === "configure" ? "Configurar autoplan" : "Vista previa";
 
   return (
-    <div className={styles.overlay} onClick={onClose} role="presentation">
-      <div
+    <AnimatePresence>
+      {open ? (
+    <motion.div
+      className={styles.overlay}
+      onClick={onClose}
+      role="presentation"
+      initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+      animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
+      exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+      transition={fades.default}
+    >
+      <motion.div
         className={styles.modal}
         onClick={(event) => event.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.94, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 4 }}
+        transition={springs.appear}
       >
         <header className={styles.header}>
           <div className={styles.titleGroup}>
@@ -415,7 +433,8 @@ export function ImportModal({
               >
                 Cancelar
               </button>
-              <button
+              <motion.button
+                {...tapProps}
                 className={styles.primaryButton}
                 disabled={continueDisabled}
                 onClick={goNextFromDetect}
@@ -423,7 +442,7 @@ export function ImportModal({
               >
                 Continuar
                 <ChevronRight size={14} strokeWidth={2} />
-              </button>
+              </motion.button>
             </>
           ) : null}
 
@@ -437,14 +456,15 @@ export function ImportModal({
                 <ArrowLeft size={14} strokeWidth={2} />
                 Volver
               </button>
-              <button
+              <motion.button
+                {...tapProps}
                 className={styles.primaryButton}
                 onClick={goNextFromConfigure}
                 type="button"
               >
                 Vista previa
                 <ChevronRight size={14} strokeWidth={2} />
-              </button>
+              </motion.button>
             </>
           ) : null}
 
@@ -490,8 +510,10 @@ export function ImportModal({
             />
           ) : null}
         </footer>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -1135,6 +1157,7 @@ function PreviewActions({
   );
   const scheduledCount = finalBlocks.filter((b) => b.scheduled).length;
   const inboxCount = finalBlocks.filter((b) => !b.scheduled).length;
+  const tapProps = useTapEffect();
 
   return (
     <>
@@ -1142,7 +1165,8 @@ function PreviewActions({
         <ArrowLeft size={14} strokeWidth={2} />
         Volver
       </button>
-      <button
+      <motion.button
+        {...tapProps}
         className={styles.primaryButton}
         disabled={isSubmitting || finalBlocks.length === 0}
         onClick={onConfirm}
@@ -1153,7 +1177,7 @@ function PreviewActions({
           : inboxCount > 0
             ? `Importar ${scheduledCount} al calendario + ${inboxCount} al Inbox`
             : `Importar ${scheduledCount} bloques al calendario`}
-      </button>
+      </motion.button>
     </>
   );
 }

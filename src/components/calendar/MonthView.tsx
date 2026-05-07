@@ -1,9 +1,11 @@
-import { useRef, type CSSProperties } from "react";
+import { useEffect, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { motion, useAnimationControls } from "framer-motion";
 
 import { useTags } from "../../hooks/useTags";
 import { getMonthGrid, isSameMonth, isToday, toIsoDate } from "../../lib/dates";
 import { DRAG_CONFIG } from "../../lib/dragConfig";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent } from "../../types";
 import styles from "./MonthView.module.css";
 
@@ -177,26 +179,40 @@ function MonthEventPill({
   title,
 }: MonthEventPillProps) {
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const previousPositionRef = useRef({ date: event.date, startTime: event.startTime });
+  const bounceControls = useAnimationControls();
+  const { springs, reduced } = useMotionPresets();
   const { attributes, isDragging, listeners, setNodeRef, transform } =
     useDraggable({
       id: `event-${event.id}`,
       data: { type: "move-event", event },
     });
   const isDimmed = Boolean(activeDragEventId && activeDragEventId !== event.id);
-  const dragStyle = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 100,
-        opacity: 0.85,
-      }
-    : undefined;
+  const dragX = transform?.x ?? 0;
+  const dragY = transform?.y ?? 0;
+  const dragOpacity = transform ? 0.85 : 1;
+  const dragZIndex = transform ? 100 : undefined;
+
+  useEffect(() => {
+    const previous = previousPositionRef.current;
+    if (previous.date === event.date && previous.startTime === event.startTime) {
+      return;
+    }
+    previousPositionRef.current = { date: event.date, startTime: event.startTime };
+    if (reduced) return;
+    void bounceControls.start({
+      scale: [1, 1.03, 1],
+      transition: { ...springs.drop, duration: 0.4, times: [0, 0.5, 1] },
+    });
+  }, [event.date, event.startTime, bounceControls, springs.drop, reduced]);
 
   return (
-    <button
+    <motion.button
+      animate={bounceControls}
+      initial={false}
       className={`${styles.eventPill} ${isUntagged ? styles.untaggedEvent : ""} ${
         isDragging ? styles.eventPillDragging : ""
       } ${isDimmed ? styles.eventPillDimmed : ""}`}
-      key={event.id}
       onClick={(clickEvent) => {
         const start = pointerStartRef.current;
         if (start) {
@@ -220,18 +236,19 @@ function MonthEventPill({
         };
       }}
       ref={setNodeRef}
-      style={
-        {
-          "--event-color": color,
-          ...dragStyle,
-        } as CSSProperties
-      }
+      style={{
+        ["--event-color" as string]: color,
+        x: dragX,
+        y: dragY,
+        opacity: dragOpacity,
+        zIndex: dragZIndex,
+      }}
       title={title}
       type="button"
       {...listeners}
       {...attributes}
     >
       {event.title}
-    </button>
+    </motion.button>
   );
 }

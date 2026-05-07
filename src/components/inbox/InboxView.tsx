@@ -6,6 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useDraggable } from "@dnd-kit/core";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Calendar as CalendarIcon,
   Inbox as InboxIcon,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { useTags } from "../../hooks/useTags";
+import { useMotionPresets } from "../../lib/motion";
 import {
   createEvent,
   deleteEvent,
@@ -124,6 +126,7 @@ export function InboxView({
   onShowToast,
 }: InboxViewProps) {
   const { getTagById } = useTags();
+  const { springs } = useMotionPresets();
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
@@ -314,36 +317,46 @@ export function InboxView({
         <div className={styles.loading}>Cargando bandeja...</div>
       ) : (
         <div className={styles.list}>
+          <AnimatePresence initial={false}>
           {events.map((event) => {
             const tag = getTagById(event.tagId);
             const color = tag?.color ?? NEUTRAL_EVENT_COLOR;
 
             return (
-              <InboxCard
-                color={color}
-                event={event}
+              <motion.div
                 key={event.id}
-                menuOpen={menuOpenId === event.id}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-                onEditEvent={onEditEvent}
-                onSchedule={handleSchedule}
-                onEventChanged={(updated) => {
-                  setEvents((current) =>
-                    current.map((currentEvent) =>
-                      currentEvent.id === updated.id ? updated : currentEvent,
-                    ),
-                  );
-                  onChanged();
-                }}
-                pickerOpen={pickerOpenId === event.id}
-                priorityLabel={PRIORITY_LABEL[event.priority]}
-                setMenuOpenId={setMenuOpenId}
-                setPickerOpenId={setPickerOpenId}
-                tagName={tag?.name ?? "Sin etiqueta"}
-              />
+                layout
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                transition={springs.appear}
+              >
+                <InboxCard
+                  color={color}
+                  event={event}
+                  menuOpen={menuOpenId === event.id}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
+                  onEditEvent={onEditEvent}
+                  onSchedule={handleSchedule}
+                  onEventChanged={(updated) => {
+                    setEvents((current) =>
+                      current.map((currentEvent) =>
+                        currentEvent.id === updated.id ? updated : currentEvent,
+                      ),
+                    );
+                    onChanged();
+                  }}
+                  pickerOpen={pickerOpenId === event.id}
+                  priorityLabel={PRIORITY_LABEL[event.priority]}
+                  setMenuOpenId={setMenuOpenId}
+                  setPickerOpenId={setPickerOpenId}
+                  tagName={tag?.name ?? "Sin etiqueta"}
+                />
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       )}
     </section>

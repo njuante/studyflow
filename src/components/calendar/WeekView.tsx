@@ -4,14 +4,15 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type MouseEvent,
 } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { motion, useAnimationControls } from "framer-motion";
 
 import { useTags } from "../../hooks/useTags";
 import { getWeekDays, isToday, toIsoDate } from "../../lib/dates";
 import { DRAG_CONFIG } from "../../lib/dragConfig";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent } from "../../types";
 import styles from "./WeekView.module.css";
 
@@ -184,7 +185,11 @@ export function WeekView({
               style={{ top: `${nowMinutesFromStart}px` }}
               aria-hidden="true"
             >
-              <span className={styles.nowDot} />
+              <motion.span
+                className={styles.nowDot}
+                animate={{ scale: [1, 1.15, 1], opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
             </div>
           ) : null}
         </div>
@@ -293,6 +298,9 @@ function WeekEventBlock({
   const localDurationRef = useRef(event.durationMinutes);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const suppressClickUntilRef = useRef(0);
+  const previousPositionRef = useRef({ date: event.date, startTime: event.startTime });
+  const bounceControls = useAnimationControls();
+  const { springs, reduced } = useMotionPresets();
   const tag = getTagById(event.tagId);
   const isUntagged = event.tagId === null || !tag;
   const { attributes, isDragging, listeners, setNodeRef, transform } =
@@ -301,17 +309,27 @@ function WeekEventBlock({
       data: { type: "move-event", event },
       disabled: isResizing,
     });
+
+  useEffect(() => {
+    const previous = previousPositionRef.current;
+    if (previous.date === event.date && previous.startTime === event.startTime) {
+      return;
+    }
+    previousPositionRef.current = { date: event.date, startTime: event.startTime };
+    if (reduced) return;
+    void bounceControls.start({
+      scale: [1, 1.03, 1],
+      transition: { ...springs.drop, duration: 0.4, times: [0, 0.5, 1] },
+    });
+  }, [event.date, event.startTime, bounceControls, springs.drop, reduced]);
   const [startHour, startMinutes] = event.startTime.split(":").map(Number);
   const top = (startHour - START_HOUR) * HOUR_HEIGHT + startMinutes;
   const height = Math.max(20, localDuration);
   const isDimmed = Boolean(activeDragEventId && activeDragEventId !== event.id);
-  const dragStyle = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 100,
-        opacity: 0.85,
-      }
-    : undefined;
+  const dragX = transform?.x ?? 0;
+  const dragY = transform?.y ?? 0;
+  const dragOpacity = transform ? 0.85 : 1;
+  const dragZIndex = transform ? 100 : undefined;
 
   useEffect(() => {
     setLocalDuration(event.durationMinutes);
@@ -363,7 +381,9 @@ function WeekEventBlock({
   }
 
   return (
-    <div
+    <motion.div
+      animate={bounceControls}
+      initial={false}
       className={`${styles.eventBlock} ${isUntagged ? styles.untaggedEvent : ""} ${
         isDragging ? styles.eventBlockDragging : ""
       } ${isDimmed ? styles.eventBlockDimmed : ""}`}
@@ -401,14 +421,15 @@ function WeekEventBlock({
         };
       }}
       ref={setNodeRef}
-      style={
-        {
-          "--event-color": tag?.color ?? NEUTRAL_EVENT_COLOR,
-          top: `${top}px`,
-          height: `${height}px`,
-          ...dragStyle,
-        } as CSSProperties
-      }
+      style={{
+        ["--event-color" as string]: tag?.color ?? NEUTRAL_EVENT_COLOR,
+        top: `${top}px`,
+        height: `${height}px`,
+        x: dragX,
+        y: dragY,
+        opacity: dragOpacity,
+        zIndex: dragZIndex,
+      }}
       title={tag ? tag.name : "Sin etiqueta"}
       {...listeners}
       {...attributes}
@@ -428,6 +449,6 @@ function WeekEventBlock({
         onPointerDown={handleResizeStart}
         style={{ height: DRAG_CONFIG.resizeHandleHeight }}
       />
-    </div>
+    </motion.div>
   );
 }

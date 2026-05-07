@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, MoreHorizontal, Plus, Tags as TagsIcon } from "lucide-react";
 
 import { useTags } from "../../hooks/useTags";
 import { getEventsByTag } from "../../lib/api";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent, Tag } from "../../types";
 import { EventTagMenu } from "./EventTagMenu";
 import styles from "./TagsOverview.module.css";
@@ -88,6 +90,7 @@ export function TagsOverview({
   onShowToast,
 }: TagsOverviewProps) {
   const { createTag, deleteTag, tags, updateTag } = useTags();
+  const { springs } = useMotionPresets();
   const [eventsByTag, setEventsByTag] = useState<Record<string, StudyEvent[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [upcomingOnly, setUpcomingOnly] = useState(true);
@@ -318,12 +321,18 @@ export function TagsOverview({
                       </button>
                     </div>
                   ) : (
-                    tagEvents.map((event) => (
-                      <article
+                    <AnimatePresence initial={false}>
+                    {tagEvents.map((event) => (
+                      <motion.article
                         className={`${styles.eventCard} ${
                           event.completed ? styles.eventCompleted : ""
                         }`}
                         key={event.id}
+                        layout
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                        transition={springs.layout}
                         onClick={() => onEventClick(event)}
                         style={{ "--event-color": tag.color } as CSSProperties}
                       >
@@ -363,8 +372,9 @@ export function TagsOverview({
                             {formatDuration(event.durationMinutes)}
                           </span>
                         </footer>
-                      </article>
-                    ))
+                      </motion.article>
+                    ))}
+                    </AnimatePresence>
                   )}
                 </div>
               </section>

@@ -22,6 +22,7 @@ export interface StudyEvent {
   scheduled: boolean;
   completed: boolean;
   completedAt: string | null;
+  lockDuringFocus: boolean;
 }
 
 export interface ImportedPlanning {

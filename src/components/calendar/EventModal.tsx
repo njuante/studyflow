@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 
 import { useTags } from "../../hooks/useTags";
+import { useTapEffect } from "../../hooks/useTapEffect";
 import { createEvent, deleteEvent, updateEvent } from "../../lib/api";
 import { toIsoDate } from "../../lib/dates";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent } from "../../types";
 import styles from "./EventModal.module.css";
 
@@ -27,6 +30,7 @@ type EventFormState = {
   type: StudyEvent["type"];
   priority: StudyEvent["priority"];
   description: string;
+  lockDuringFocus: boolean;
 };
 
 const DURATION_OPTIONS = [30, 60, 90, 120, 180];
@@ -66,6 +70,7 @@ function buildInitialState(
       type: event.type,
       priority: event.priority,
       description: event.description ?? "",
+      lockDuringFocus: event.lockDuringFocus ?? false,
     };
   }
 
@@ -78,6 +83,7 @@ function buildInitialState(
     type: "theory",
     priority: "medium",
     description: "",
+    lockDuringFocus: false,
   };
 }
 
@@ -96,6 +102,8 @@ export function EventModal({
   open,
 }: EventModalProps) {
   const { tags, getTagById } = useTags();
+  const { springs, fades } = useMotionPresets();
+  const tapProps = useTapEffect();
   const [form, setForm] = useState<EventFormState>(() =>
     buildInitialState(event, initialDate, initialTime, initialTagId),
   );
@@ -117,10 +125,6 @@ export function EventModal({
     form.startTime.length > 0 &&
     isValidDuration(form.durationMinutes);
   const selectedTag = useMemo(() => getTagById(form.tagId), [form.tagId, getTagById]);
-
-  if (!open) {
-    return null;
-  }
 
   function updateField<K extends keyof EventFormState>(
     field: K,
@@ -151,6 +155,7 @@ export function EventModal({
           tagId: form.tagId,
           type: form.type,
           priority: form.priority,
+          lockDuringFocus: form.lockDuringFocus,
           updatedAt: now,
         }
       : {
@@ -168,6 +173,7 @@ export function EventModal({
           scheduled: true,
           completed: false,
           completedAt: null,
+          lockDuringFocus: form.lockDuringFocus,
         };
 
     try {
@@ -199,8 +205,25 @@ export function EventModal({
   }
 
   return (
-    <div className={styles.overlay} onClick={onClose} role="presentation">
-      <div className={styles.modal} onClick={(clickEvent) => clickEvent.stopPropagation()}>
+    <AnimatePresence>
+      {open ? (
+    <motion.div
+      className={styles.overlay}
+      onClick={onClose}
+      role="presentation"
+      initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+      animate={{ opacity: 1, backdropFilter: "blur(8px)" }}
+      exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+      transition={fades.default}
+    >
+      <motion.div
+        className={styles.modal}
+        onClick={(clickEvent) => clickEvent.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.94, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 4 }}
+        transition={springs.appear}
+      >
         <header className={styles.header}>
           <input
             className={styles.titleInput}
@@ -333,6 +356,22 @@ export function EventModal({
             />
           </label>
 
+          <label className={styles.lockField}>
+            <input
+              checked={form.lockDuringFocus}
+              onChange={(changeEvent) =>
+                updateField("lockDuringFocus", changeEvent.target.checked)
+              }
+              type="checkbox"
+            />
+            <span className={styles.lockLabelText}>
+              Bloqueo Focus
+              <span className={styles.lockHint}>
+                No permitir cerrar el widget durante este bloque
+              </span>
+            </span>
+          </label>
+
           {!isValid ? (
             <p className={styles.validation}>
               El título es obligatorio y la duración debe estar entre 5 y 720 min.
@@ -359,7 +398,8 @@ export function EventModal({
             >
               Cancelar
             </button>
-            <button
+            <motion.button
+              {...tapProps}
               className={styles.saveButton}
               disabled={!isValid || isSubmitting}
               onClick={handleSave}
@@ -370,10 +410,12 @@ export function EventModal({
                   ? "Guardando..."
                   : "Creando..."
                 : "Guardar cambios"}
-            </button>
+            </motion.button>
           </div>
         </footer>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

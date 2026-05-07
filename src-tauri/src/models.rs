@@ -93,6 +93,8 @@ pub struct StudyEvent {
     pub completed: bool,
     #[serde(default)]
     pub completed_at: Option<String>,
+    #[serde(default)]
+    pub lock_during_focus: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

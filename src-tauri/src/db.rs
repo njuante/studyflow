@@ -71,6 +71,7 @@ fn create_events_table(connection: &Connection) -> Result<(), AppError> {
           scheduled INTEGER NOT NULL DEFAULT 1,
           completed INTEGER NOT NULL DEFAULT 0,
           completed_at TEXT,
+          lock_during_focus INTEGER NOT NULL DEFAULT 0,
           FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE SET NULL
         );
 
@@ -202,6 +203,12 @@ fn migrate_events_table(connection: &Connection) -> Result<(), AppError> {
 
     if !column_exists(connection, "events", "completed_at")? {
         connection.execute_batch("ALTER TABLE events ADD COLUMN completed_at TEXT;")?;
+    }
+
+    if !column_exists(connection, "events", "lock_during_focus")? {
+        connection.execute_batch(
+            "ALTER TABLE events ADD COLUMN lock_during_focus INTEGER NOT NULL DEFAULT 0;",
+        )?;
     }
 
     connection.execute_batch(
@@ -357,7 +364,7 @@ pub fn get_events_by_tag(
 
     let mut statement = connection.prepare(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE tag_id = ?1
           AND (?7 = 0 OR scheduled = 0)
@@ -465,7 +472,7 @@ pub fn get_events_in_range(
 ) -> Result<Vec<StudyEvent>, AppError> {
     let mut statement = connection.prepare(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE date BETWEEN ?1 AND ?2 AND scheduled = 1
         ORDER BY date ASC, start_time ASC
@@ -483,7 +490,7 @@ pub fn get_events_for_date(
 ) -> Result<Vec<StudyEvent>, AppError> {
     let mut statement = connection.prepare(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE date = ?1 AND scheduled = 1
         ORDER BY start_time ASC
@@ -498,7 +505,7 @@ pub fn get_events_for_date(
 pub fn get_inbox_events(connection: &Connection) -> Result<Vec<StudyEvent>, AppError> {
     let mut statement = connection.prepare(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE scheduled = 0
         ORDER BY created_at DESC
@@ -518,7 +525,7 @@ pub fn get_archive_events(
 ) -> Result<Vec<StudyEvent>, AppError> {
     let mut statement = connection.prepare(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE scheduled = 1 AND (date < ?1 OR completed = 1)
         ORDER BY date DESC, start_time DESC
@@ -628,10 +635,10 @@ pub fn complete_event(connection: &Connection, id: &str) -> Result<StudyEvent, A
     get_event_by_id(connection, id)
 }
 
-fn get_event_by_id(connection: &Connection, id: &str) -> Result<StudyEvent, AppError> {
+pub fn get_event_by_id(connection: &Connection, id: &str) -> Result<StudyEvent, AppError> {
     let event = connection.query_row(
         "
-        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
         FROM events
         WHERE id = ?1
         ",
@@ -646,8 +653,8 @@ pub fn insert_event(connection: &Connection, event: &StudyEvent) -> Result<Study
     connection.execute(
         "
         INSERT INTO events (
-          id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+          id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
         ",
         params![
             &event.id,
@@ -664,6 +671,7 @@ pub fn insert_event(connection: &Connection, event: &StudyEvent) -> Result<Study
             if event.scheduled { 1 } else { 0 },
             if event.completed { 1 } else { 0 },
             event.completed_at.as_deref(),
+            if event.lock_during_focus { 1 } else { 0 },
         ],
     )?;
 
@@ -686,7 +694,8 @@ pub fn update_event(connection: &Connection, event: &StudyEvent) -> Result<Study
             updated_at = ?11,
             scheduled = ?12,
             completed = ?13,
-            completed_at = ?14
+            completed_at = ?14,
+            lock_during_focus = ?15
         WHERE id = ?1
         ",
         params![
@@ -704,6 +713,7 @@ pub fn update_event(connection: &Connection, event: &StudyEvent) -> Result<Study
             if event.scheduled { 1 } else { 0 },
             if event.completed { 1 } else { 0 },
             event.completed_at.as_deref(),
+            if event.lock_during_focus { 1 } else { 0 },
         ],
     )?;
 
@@ -715,6 +725,57 @@ pub fn update_event(connection: &Connection, event: &StudyEvent) -> Result<Study
     }
 
     Ok(event.clone())
+}
+
+pub fn get_current_event(
+    connection: &Connection,
+    today: &str,
+    now_time: &str,
+) -> Result<Option<StudyEvent>, AppError> {
+    let event = connection
+        .query_row(
+            "
+            SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
+            FROM events
+            WHERE scheduled = 1
+              AND completed = 0
+              AND date = ?1
+              AND start_time <= ?2
+              AND time(start_time, '+' || duration_minutes || ' minutes') > ?2
+            ORDER BY start_time ASC
+            LIMIT 1
+            ",
+            params![today, now_time],
+            map_study_event,
+        )
+        .optional()?;
+
+    Ok(event)
+}
+
+pub fn get_next_event(
+    connection: &Connection,
+    today: &str,
+    now_time: &str,
+) -> Result<Option<StudyEvent>, AppError> {
+    let event = connection
+        .query_row(
+            "
+            SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
+            FROM events
+            WHERE scheduled = 1
+              AND completed = 0
+              AND date = ?1
+              AND start_time > ?2
+            ORDER BY start_time ASC
+            LIMIT 1
+            ",
+            params![today, now_time],
+            map_study_event,
+        )
+        .optional()?;
+
+    Ok(event)
 }
 
 pub fn delete_event(connection: &Connection, id: &str) -> Result<(), AppError> {
@@ -738,8 +799,8 @@ pub fn bulk_insert_events(
     let mut statement = transaction.prepare(
         "
         INSERT INTO events (
-          id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+          id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at, lock_during_focus
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
         ",
     )?;
 
@@ -760,6 +821,7 @@ pub fn bulk_insert_events(
             if event.scheduled { 1 } else { 0 },
             if event.completed { 1 } else { 0 },
             event.completed_at.as_deref(),
+            if event.lock_during_focus { 1 } else { 0 },
         ])?;
         inserted += 1;
     }
@@ -811,6 +873,10 @@ fn map_study_event(row: &Row<'_>) -> rusqlite::Result<StudyEvent> {
         scheduled: row.get::<_, i64>("scheduled")? != 0,
         completed: row.get::<_, i64>("completed")? != 0,
         completed_at: row.get("completed_at")?,
+        lock_during_focus: row
+            .get::<_, Option<i64>>("lock_during_focus")?
+            .map(|value| value != 0)
+            .unwrap_or(false),
     })
 }
 

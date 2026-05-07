@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Sun } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { useTags } from "../../hooks/useTags";
 import { completeEvent, getTodayEvents } from "../../lib/api";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent } from "../../types";
 import { EventTagMenu } from "../tags/EventTagMenu";
+import { CompletionEffect, StrikeThrough } from "./CompletionEffect";
 import styles from "./TodayView.module.css";
 
 interface TodayViewProps {
@@ -61,6 +64,7 @@ export function TodayView({
   onEditEvent,
 }: TodayViewProps) {
   const { getTagById } = useTags();
+  const { springs } = useMotionPresets();
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -136,69 +140,84 @@ export function TodayView({
         <div className={styles.loading}>Cargando agenda de hoy...</div>
       ) : (
         <div className={styles.timeline}>
-          {events.map((event) => {
-            const isCompleted = event.completed;
-            const tag = getTagById(event.tagId);
-            const isUntagged = event.tagId === null || !tag;
+          <AnimatePresence initial={false}>
+            {events.map((event) => {
+              const isCompleted = event.completed;
+              const tag = getTagById(event.tagId);
+              const isUntagged = event.tagId === null || !tag;
 
-            return (
-              <article
-                className={`${styles.eventCard} ${
-                  isUntagged ? styles.untaggedEvent : ""
-                } ${isCompleted ? styles.completed : ""}`}
-                key={event.id}
-                style={
-                  {
-                    "--event-color": isCompleted
-                      ? "var(--tag-green)"
-                      : tag?.color ?? NEUTRAL_EVENT_COLOR,
-                  } as CSSProperties
-                }
-              >
-                <div className={styles.timeColumn}>
-                  <span className={styles.startTime}>{event.startTime}</span>
-                  <span className={styles.endTime}>
-                    {formatEndTime(event.startTime, event.durationMinutes)}
-                  </span>
-                </div>
+              return (
+                <motion.div
+                  key={event.id}
+                  layout
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={springs.appear}
+                >
+                  <CompletionEffect
+                    completed={isCompleted}
+                    className={`${styles.eventCard} ${
+                      isUntagged ? styles.untaggedEvent : ""
+                    } ${isCompleted ? styles.completed : ""}`}
+                    style={
+                      {
+                        "--event-color": isCompleted
+                          ? "var(--tag-green)"
+                          : tag?.color ?? NEUTRAL_EVENT_COLOR,
+                      } as CSSProperties
+                    }
+                  >
+                    <div className={styles.timeColumn}>
+                      <span className={styles.startTime}>{event.startTime}</span>
+                      <span className={styles.endTime}>
+                        {formatEndTime(event.startTime, event.durationMinutes)}
+                      </span>
+                    </div>
 
-                <div className={styles.content}>
-                  <h2 className={styles.eventTitle}>{event.title}</h2>
-                  {event.description ? (
-                    <p className={styles.description}>{event.description}</p>
-                  ) : null}
-                  <div className={styles.tags}>
-                    <span className={styles.projectTag}>
-                      {tag?.name ?? "Sin etiqueta"}
-                    </span>
-                  </div>
-                </div>
+                    <div className={styles.content}>
+                      <h2 className={styles.eventTitle}>
+                        <StrikeThrough active={isCompleted}>
+                          {event.title}
+                        </StrikeThrough>
+                      </h2>
+                      {event.description ? (
+                        <p className={styles.description}>{event.description}</p>
+                      ) : null}
+                      <div className={styles.tags}>
+                        <span className={styles.projectTag}>
+                          {tag?.name ?? "Sin etiqueta"}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className={styles.actions}>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      checked={isCompleted}
-                      onChange={() => void toggleCompleted(event.id)}
-                      type="checkbox"
-                    />
-                    <span>Hecho</span>
-                  </label>
-                  <EventTagMenu
-                    event={event}
-                    onChanged={(updated) => {
-                      setEvents((current) =>
-                        current.map((currentEvent) =>
-                          currentEvent.id === updated.id ? updated : currentEvent,
-                        ),
-                      );
-                      onChanged?.();
-                    }}
-                    onEdit={onEditEvent}
-                  />
-                </div>
-              </article>
-            );
-          })}
+                    <div className={styles.actions}>
+                      <label className={styles.checkboxLabel}>
+                        <input
+                          checked={isCompleted}
+                          onChange={() => void toggleCompleted(event.id)}
+                          type="checkbox"
+                        />
+                        <span>Hecho</span>
+                      </label>
+                      <EventTagMenu
+                        event={event}
+                        onChanged={(updated) => {
+                          setEvents((current) =>
+                            current.map((currentEvent) =>
+                              currentEvent.id === updated.id ? updated : currentEvent,
+                            ),
+                          );
+                          onChanged?.();
+                        }}
+                        onEdit={onEditEvent}
+                      />
+                    </div>
+                  </CompletionEffect>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </section>

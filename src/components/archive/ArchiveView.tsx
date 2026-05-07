@@ -6,10 +6,12 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Archive as ArchiveIcon, Check, Search, X } from "lucide-react";
 
 import { useTags } from "../../hooks/useTags";
 import { getArchiveEvents } from "../../lib/api";
+import { useMotionPresets } from "../../lib/motion";
 import type { StudyEvent } from "../../types";
 import styles from "./ArchiveView.module.css";
 
@@ -48,6 +50,7 @@ function formatDayLine(date: string, startTime: string): string {
 
 export function ArchiveView({ refreshKey, onEventClick }: ArchiveViewProps) {
   const { tags, getTagById } = useTags();
+  const { springs } = useMotionPresets();
   const [items, setItems] = useState<StudyEvent[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -225,14 +228,20 @@ export function ArchiveView({ refreshKey, onEventClick }: ArchiveViewProps) {
             <div className={styles.group} key={monthKey}>
               <h2 className={styles.monthHeading}>{formatMonthLabel(monthKey)}</h2>
               <div className={styles.list}>
+                <AnimatePresence initial={false}>
                 {monthEvents.map((event) => {
                   const tag = getTagById(event.tagId);
                   const color = tag?.color ?? NEUTRAL_EVENT_COLOR;
 
                   return (
-                    <button
+                    <motion.button
                       className={`${styles.row} ${event.completed ? styles.rowCompleted : ""}`}
                       key={event.id}
+                      layout
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={springs.appear}
                       onClick={() => onEventClick(event)}
                       style={
                         {
@@ -261,9 +270,10 @@ export function ArchiveView({ refreshKey, onEventClick }: ArchiveViewProps) {
                       >
                         {tag?.name ?? "Sin etiqueta"}
                       </span>
-                    </button>
+                    </motion.button>
                   );
                 })}
+                </AnimatePresence>
               </div>
             </div>
           ))}

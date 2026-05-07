@@ -250,7 +250,8 @@
   left: 0;
   right: 0;
   height: 0;
-  border-top: 1.5px solid #ff3b30;
+  border-top: 1px solid #ff3b30;
+  box-shadow: 0 0 8px rgba(255, 59, 48, 0.4);
   pointer-events: none;
   z-index: 1;
 }

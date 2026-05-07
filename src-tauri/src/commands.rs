@@ -1,5 +1,7 @@
 use chrono::Local;
-use tauri::{State, WebviewWindow};
+use tauri::{
+    AppHandle, Emitter, LogicalPosition, Manager, State, WebviewWindow, WebviewWindowBuilder,
+};
 
 use crate::{
     db,
@@ -275,4 +277,152 @@ pub async fn toggle_maximize_window(window: WebviewWindow) -> Result<(), AppErro
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn toggle_quick_capture(app: AppHandle) -> Result<(), AppError> {
+    if let Some(window) = app.get_webview_window("quickCapture") {
+        if window.is_visible().unwrap_or(false) {
+            window.hide().ok();
+        } else {
+            window.center().ok();
+            window.show().ok();
+            window.set_focus().ok();
+        }
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(
+        &app,
+        "quickCapture",
+        tauri::WebviewUrl::App("index.html#/quick-capture".into()),
+    )
+    .title("Quick Capture")
+    .inner_size(540.0, 64.0)
+    .resizable(false)
+    .decorations(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .transparent(true)
+    .visible(false)
+    .build()?;
+
+    if let Some(window) = app.get_webview_window("quickCapture") {
+        window.center().ok();
+        window.show().ok();
+        window.set_focus().ok();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn hide_quick_capture(app: AppHandle) -> Result<(), AppError> {
+    if let Some(window) = app.get_webview_window("quickCapture") {
+        window.hide().ok();
+    }
+    Ok(())
+}
+
+const FOCUS_WIDTH: f64 = 240.0;
+const FOCUS_HEIGHT: f64 = 180.0;
+const FOCUS_MARGIN: f64 = 24.0;
+const FOCUS_TASKBAR_OFFSET: f64 = 48.0;
+
+fn focus_window_position(app: &AppHandle) -> Option<LogicalPosition<f64>> {
+    let monitor = app.primary_monitor().ok().flatten()?;
+    let scale = monitor.scale_factor();
+    let size = monitor.size();
+    let logical_width = size.width as f64 / scale;
+    let logical_height = size.height as f64 / scale;
+    let x = logical_width - FOCUS_WIDTH - FOCUS_MARGIN;
+    let y = logical_height - FOCUS_HEIGHT - FOCUS_MARGIN - FOCUS_TASKBAR_OFFSET;
+    Some(LogicalPosition::new(x, y))
+}
+
+#[tauri::command]
+pub async fn open_focus_window(app: AppHandle, event_id: String) -> Result<(), AppError> {
+    let position = focus_window_position(&app);
+
+    if let Some(window) = app.get_webview_window("focus") {
+        if let Some(pos) = position {
+            window.set_position(pos).ok();
+        }
+        window.show().ok();
+        window.set_focus().ok();
+        window.emit("focus-event-changed", event_id).ok();
+        return Ok(());
+    }
+
+    let url = format!("index.html#/focus?event={event_id}");
+    let mut builder = WebviewWindowBuilder::new(&app, "focus", tauri::WebviewUrl::App(url.into()))
+        .title("Focus")
+        .inner_size(FOCUS_WIDTH, FOCUS_HEIGHT)
+        .resizable(false)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .transparent(true);
+
+    if let Some(pos) = position {
+        builder = builder.position(pos.x, pos.y);
+    }
+
+    builder.build()?;
+
+    if let Some(window) = app.get_webview_window("focus") {
+        window.set_focus().ok();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn close_focus_window(app: AppHandle) -> Result<(), AppError> {
+    if let Some(window) = app.get_webview_window("focus") {
+        window.hide().ok();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_current_event(
+    db_state: State<'_, DbState>,
+) -> Result<Option<StudyEvent>, AppError> {
+    let now = Local::now();
+    let today = now.date_naive().format("%Y-%m-%d").to_string();
+    let now_time = now.format("%H:%M").to_string();
+
+    let connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::get_current_event(&connection, &today, &now_time)
+}
+
+#[tauri::command]
+pub async fn get_next_event(
+    db_state: State<'_, DbState>,
+) -> Result<Option<StudyEvent>, AppError> {
+    let now = Local::now();
+    let today = now.date_naive().format("%Y-%m-%d").to_string();
+    let now_time = now.format("%H:%M").to_string();
+
+    let connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::get_next_event(&connection, &today, &now_time)
+}
+
+#[tauri::command]
+pub async fn get_event_by_id(
+    id: String,
+    db_state: State<'_, DbState>,
+) -> Result<StudyEvent, AppError> {
+    let connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::get_event_by_id(&connection, &id)
 }

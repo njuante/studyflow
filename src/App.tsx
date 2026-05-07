@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   closestCenter,
   DndContext,
@@ -21,6 +22,7 @@ import { ArchiveView } from "./components/archive/ArchiveView";
 import { EventModal } from "./components/calendar/EventModal";
 import { MonthView } from "./components/calendar/MonthView";
 import { WeekView } from "./components/calendar/WeekView";
+import { CommandPalette } from "./components/commandPalette/CommandPalette";
 import { ImportModal } from "./components/import/ImportModal";
 import { InboxView } from "./components/inbox/InboxView";
 import { MainLayout } from "./components/MainLayout";
@@ -44,7 +46,8 @@ import {
 import { getMonthGrid, getWeekDays, toIsoDate } from "./lib/dates";
 import { DRAG_CONFIG } from "./lib/dragConfig";
 import type { StudyFlowDragData, StudyFlowDropData } from "./lib/dragTypes";
-import type { StudyEvent } from "./types";
+import type { QuickCommandResult } from "./lib/quickCommand";
+import type { StudyEvent, Tag } from "./types";
 import styles from "./App.module.css";
 
 export type ViewMode = "month" | "week";
@@ -63,6 +66,8 @@ type EventModalState =
   | null;
 
 const IMPORT_SHORTCUT = "CommandOrControl+Shift+V";
+const QUICK_CAPTURE_SHORTCUT = "CommandOrControl+Shift+N";
+const FOCUS_SHORTCUT = "CommandOrControl+Shift+F";
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -125,7 +130,7 @@ function snapMinutes(minutes: number, snap: boolean): number {
 }
 
 function App() {
-  const { getTagById } = useTags();
+  const { createTag, getTagById } = useTags();
   const { theme, toggleTheme } = useTheme();
   const { toast, showToast } = useToast();
   const [activeView, setActiveView] = useState<SidebarView>("calendar");
@@ -143,6 +148,7 @@ function App() {
   const [activeDrag, setActiveDrag] = useState<StudyFlowDragData | null>(null);
   const [optimisticallyRemovedInboxId, setOptimisticallyRemovedInboxId] =
     useState<string | null>(null);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const pointerStateRef = useRef({
     altKey: false,
     shiftKey: false,
@@ -217,9 +223,66 @@ function App() {
       }
     });
 
+    void register(QUICK_CAPTURE_SHORTCUT, (event) => {
+      if (event.state === "Pressed") {
+        void invoke("toggle_quick_capture").catch(() => {});
+      }
+    }).catch(() => {
+      if (isMounted) {
+        showToast(
+          "No se pudo registrar Ctrl+Shift+N. Puede que otra app ya lo use.",
+          "error",
+        );
+      }
+    });
+
+    void register(FOCUS_SHORTCUT, (event) => {
+      if (event.state === "Pressed") {
+        void launchFocusForCurrentEvent();
+      }
+    }).catch(() => {
+      if (isMounted) {
+        showToast(
+          "No se pudo registrar Ctrl+Shift+F. Puede que otra app ya lo use.",
+          "error",
+        );
+      }
+    });
+
     return () => {
       isMounted = false;
       void unregister(IMPORT_SHORTCUT).catch(() => {});
+      void unregister(QUICK_CAPTURE_SHORTCUT).catch(() => {});
+      void unregister(FOCUS_SHORTCUT).catch(() => {});
+    };
+  }, [showToast]);
+
+  async function launchFocusForCurrentEvent() {
+    try {
+      const current = await invoke<StudyEvent | null>("get_current_event");
+      if (!current) {
+        showToast("No hay ningún bloque en curso", "info");
+        return;
+      }
+      await invoke("open_focus_window", { eventId: current.id });
+    } catch {
+      showToast("No se pudo abrir el modo Focus", "error");
+    }
+  }
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+    let unlisten: (() => void) | null = null;
+    void listen("event-created", () => {
+      setRefreshKey((current) => current + 1);
+      showToast("Bloque añadido desde Quick Capture", "success");
+    }).then((handler) => {
+      unlisten = handler;
+    });
+    return () => {
+      unlisten?.();
     };
   }, [showToast]);
 
@@ -256,7 +319,7 @@ function App() {
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat || isTypingTarget(event.target)) {
+      if (event.defaultPrevented || event.repeat) {
         return;
       }
 
@@ -267,21 +330,49 @@ function App() {
 
       const key = event.key.toLowerCase();
 
-      if (key === "1") {
+      if (key === "k" && !event.shiftKey) {
         event.preventDefault();
-        setActiveView("today");
+        setShowCommandPalette((current) => !current);
         return;
       }
 
-      if (key === "2") {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      if (key === "1" && !event.shiftKey) {
         event.preventDefault();
         setActiveView("calendar");
+        setViewMode("month");
+        return;
+      }
+
+      if (key === "2" && !event.shiftKey) {
+        event.preventDefault();
+        setActiveView("calendar");
+        setViewMode("week");
         return;
       }
 
       if (key === "t" && !event.shiftKey) {
         event.preventDefault();
+        setCurrentDate(new Date());
+        return;
+      }
+
+      if (key === "d" && !event.shiftKey) {
+        event.preventDefault();
         toggleTheme();
+        return;
+      }
+
+      if (key === "n" && !event.shiftKey) {
+        event.preventDefault();
+        setEventModalState({
+          mode: "create",
+          initialDate: new Date(),
+          initialTime: "09:00",
+        });
       }
     }
 
@@ -387,6 +478,47 @@ function App() {
   function handleEventDeleted() {
     setRefreshKey((current) => current + 1);
     showToast("Bloque eliminado", "info");
+  }
+
+  function handleCommandCreateTag() {
+    const name = window.prompt("Nombre de la etiqueta");
+    if (!name?.trim()) return;
+    createTag(name.trim(), "#378ADD")
+      .then(() => showToast("Etiqueta creada", "success"))
+      .catch(() => showToast("No se pudo crear la etiqueta", "error"));
+  }
+
+  async function handleQuickCreate(parsed: QuickCommandResult) {
+    const now = new Date().toISOString();
+    const event: StudyEvent = {
+      id: crypto.randomUUID(),
+      title: parsed.title,
+      description: undefined,
+      date: parsed.date,
+      startTime: parsed.startTime,
+      durationMinutes: parsed.durationMinutes,
+      tagId: null,
+      type: "theory",
+      priority: "medium",
+      createdAt: now,
+      updatedAt: now,
+      scheduled: true,
+      completed: false,
+      completedAt: null,
+      lockDuringFocus: false,
+    };
+
+    try {
+      await createEvent(event);
+      setRefreshKey((current) => current + 1);
+      showToast(`"${parsed.title}" añadido`, "success");
+    } catch {
+      showToast("No se pudo crear el bloque", "error");
+    }
+  }
+
+  function handleSelectTagFromPalette(tag: Tag) {
+    handleSelectTag(tag.id);
   }
 
   function isDateInVisibleCalendar(date: string): boolean {
@@ -751,6 +883,30 @@ function App() {
         onDeleted={handleEventDeleted}
         onSaved={handleEventSaved}
         open={eventModalState !== null}
+      />
+
+      <CommandPalette
+        onClose={() => setShowCommandPalette(false)}
+        onCreateEvent={handleCreateEvent}
+        onCreateTag={handleCommandCreateTag}
+        onFocusMode={() => void launchFocusForCurrentEvent()}
+        onGoCalendar={() => setActiveView("calendar")}
+        onGoInbox={() => setActiveView("inbox")}
+        onGoToday={() => {
+          setActiveView("today");
+          setCurrentDate(new Date());
+        }}
+        onImport={() => setShowImport(true)}
+        onQuickCreate={handleQuickCreate}
+        onSelectEvent={handleEventClick}
+        onSelectTag={handleSelectTagFromPalette}
+        onSetViewMode={(mode) => {
+          setActiveView("calendar");
+          setViewMode(mode);
+        }}
+        onToggleTheme={toggleTheme}
+        open={showCommandPalette}
+        theme={theme}
       />
       </div>
 

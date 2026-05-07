@@ -58,9 +58,8 @@
 }
 
 .completed .eventTitle {
-  text-decoration: line-through;
-  text-decoration-color: var(--text-tertiary);
-  transition: text-decoration-color 300ms ease;
+  color: var(--text-secondary);
+  transition: color 300ms ease;
 }
 
 .timeColumn {

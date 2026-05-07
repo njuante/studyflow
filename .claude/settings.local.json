@@ -11,7 +11,13 @@
       "PowerShell(New-Item *)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:1420/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty StatusCode)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:1420/\" -UseBasicParsing 2>&1 | Select-Object -ExpandProperty Content | Select-Object -First 1)",
-      "PowerShell(Copy-Item *)"
+      "PowerShell(Copy-Item *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(cargo check *)",
+      "Bash(cargo add *)"
     ]
   }
 }

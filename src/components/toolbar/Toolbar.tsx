@@ -1,7 +1,9 @@
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import type { ViewMode } from "../../App";
+import { useTapEffect } from "../../hooks/useTapEffect";
 import { formatMonthYear, formatWeekRange } from "../../lib/dates";
 import type { Tag } from "../../types";
 import styles from "./Toolbar.module.css";
@@ -29,6 +31,7 @@ export function Toolbar({
   tagFilter,
   viewMode,
 }: ToolbarProps) {
+  const tapProps = useTapEffect();
   return (
     <header className={styles.toolbar}>
       <div className={styles.heading}>
@@ -57,7 +60,8 @@ export function Toolbar({
         ) : null}
 
         <div className={styles.segmented}>
-          <button
+          <motion.button
+            {...tapProps}
             className={`${styles.segmentButton} ${
               viewMode === "month" ? styles.segmentActive : ""
             }`}
@@ -65,8 +69,9 @@ export function Toolbar({
             type="button"
           >
             Mensual
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            {...tapProps}
             className={`${styles.segmentButton} ${
               viewMode === "week" ? styles.segmentActive : ""
             }`}
@@ -74,7 +79,7 @@ export function Toolbar({
             type="button"
           >
             Semanal
-          </button>
+          </motion.button>
         </div>
 
         <span className={styles.separator} aria-hidden="true" />
@@ -93,14 +98,15 @@ export function Toolbar({
 
         <span className={styles.separator} aria-hidden="true" />
 
-        <button
+        <motion.button
+          {...tapProps}
           aria-label="Crear bloque"
           className={styles.createButton}
           onClick={onCreateEvent}
           type="button"
         >
           <Plus size={16} strokeWidth={1.75} />
-        </button>
+        </motion.button>
       </div>
     </header>
   );
