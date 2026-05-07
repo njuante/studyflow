@@ -55,6 +55,12 @@
   background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
 }
 
+.dayCellOver {
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+}
+
 .outsideMonth {
   opacity: 0.4;
 }
@@ -109,6 +115,19 @@
     color 80ms ease,
     transform 80ms ease;
   cursor: pointer;
+}
+
+.eventPill:hover {
+  cursor: grab;
+}
+
+.eventPill:active,
+.eventPillDragging {
+  cursor: grabbing;
+}
+
+.eventPillDimmed {
+  opacity: 0.5;
 }
 
 .eventPill {

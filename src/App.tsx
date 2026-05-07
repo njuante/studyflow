@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragCancelEvent,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import {
   register,
   unregister,
@@ -13,6 +25,8 @@ import { ImportModal } from "./components/import/ImportModal";
 import { InboxView } from "./components/inbox/InboxView";
 import { MainLayout } from "./components/MainLayout";
 import { Sidebar, type SidebarView } from "./components/sidebar/Sidebar";
+import { TagDetailView } from "./components/tags/TagDetailView";
+import { TagsOverview } from "./components/tags/TagsOverview";
 import { Titlebar } from "./components/Titlebar";
 import { Toast } from "./components/Toast";
 import { TodayView } from "./components/today/TodayView";
@@ -20,8 +34,16 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { useTags } from "./hooks/useTags";
 import { useTheme } from "./hooks/useTheme";
 import { useToast } from "./hooks/useToast";
-import { countInboxEvents, getEventsInRange } from "./lib/api";
+import {
+  countInboxEvents,
+  createEvent,
+  getEventsInRange,
+  scheduleEvent,
+  updateEvent,
+} from "./lib/api";
 import { getMonthGrid, getWeekDays, toIsoDate } from "./lib/dates";
+import { DRAG_CONFIG } from "./lib/dragConfig";
+import type { StudyFlowDragData, StudyFlowDropData } from "./lib/dragTypes";
 import type { StudyEvent } from "./types";
 import styles from "./App.module.css";
 
@@ -32,6 +54,7 @@ type EventModalState =
       mode: "create";
       initialDate?: Date | null;
       initialTime?: string | null;
+      initialTagId?: string | null;
     }
   | {
       mode: "edit";
@@ -54,6 +77,53 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
+function isDragData(value: unknown): value is StudyFlowDragData {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const data = value as Partial<StudyFlowDragData>;
+  return (
+    (data.type === "move-event" || data.type === "schedule-from-inbox") &&
+    Boolean(data.event)
+  );
+}
+
+function isDropData(value: unknown): value is StudyFlowDropData {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const data = value as Partial<StudyFlowDropData>;
+  return (
+    (data.type === "day-slot" && typeof data.getTimeFromY === "function") ||
+    data.type === "month-day"
+  );
+}
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${`${hours}`.padStart(2, "0")}:${`${remainingMinutes}`.padStart(2, "0")}`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function snapMinutes(minutes: number, snap: boolean): number {
+  if (!snap) {
+    return Math.round(minutes);
+  }
+
+  return Math.round(minutes / DRAG_CONFIG.snapMinutes) * DRAG_CONFIG.snapMinutes;
+}
+
 function App() {
   const { getTagById } = useTags();
   const { theme, toggleTheme } = useTheme();
@@ -66,7 +136,25 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [eventModalState, setEventModalState] = useState<EventModalState>(null);
   const [tagFilterId, setTagFilterId] = useState<string | null>(null);
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [tagDetailBackView, setTagDetailBackView] =
+    useState<"tags" | "calendar">("tags");
   const [inboxCount, setInboxCount] = useState(0);
+  const [activeDrag, setActiveDrag] = useState<StudyFlowDragData | null>(null);
+  const [optimisticallyRemovedInboxId, setOptimisticallyRemovedInboxId] =
+    useState<string | null>(null);
+  const pointerStateRef = useRef({
+    altKey: false,
+    shiftKey: false,
+    x: 0,
+    y: 0,
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: DRAG_CONFIG.activationDistance },
+    }),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +170,7 @@ function App() {
   }, [refreshKey]);
 
   useEffect(() => {
-    if (activeView !== "calendar") {
+    if (activeView !== "calendar" && activeView !== "inbox") {
       return;
     }
 
@@ -134,6 +222,37 @@ function App() {
       void unregister(IMPORT_SHORTCUT).catch(() => {});
     };
   }, [showToast]);
+
+  useEffect(() => {
+    function rememberPointer(event: PointerEvent) {
+      pointerStateRef.current = {
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        x: event.clientX,
+        y: event.clientY,
+      };
+    }
+
+    function rememberKeys(event: KeyboardEvent) {
+      pointerStateRef.current = {
+        ...pointerStateRef.current,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+      };
+    }
+
+    window.addEventListener("pointermove", rememberPointer);
+    window.addEventListener("pointerup", rememberPointer);
+    window.addEventListener("keydown", rememberKeys);
+    window.addEventListener("keyup", rememberKeys);
+
+    return () => {
+      window.removeEventListener("pointermove", rememberPointer);
+      window.removeEventListener("pointerup", rememberPointer);
+      window.removeEventListener("keydown", rememberKeys);
+      window.removeEventListener("keyup", rememberKeys);
+    };
+  }, []);
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
@@ -235,6 +354,21 @@ function App() {
     });
   }
 
+  function handleCreateWithTag(tagId: string) {
+    setEventModalState({
+      mode: "create",
+      initialDate: new Date(),
+      initialTime: "09:00",
+      initialTagId: tagId,
+    });
+  }
+
+  function handleSelectTag(tagId: string, sourceView: SidebarView = activeView) {
+    setSelectedTagId(tagId);
+    setTagDetailBackView(sourceView === "calendar" ? "calendar" : "tags");
+    setActiveView("tag-detail");
+  }
+
   function handleImportComplete(count: number) {
     setRefreshKey((current) => current + 1);
     showToast(`${count} bloques añadidos al calendario`, "success");
@@ -255,11 +389,197 @@ function App() {
     showToast("Bloque eliminado", "info");
   }
 
-  const showCalendarToolbar = activeView === "calendar";
+  function isDateInVisibleCalendar(date: string): boolean {
+    const visibleDates =
+      viewMode === "month" ? getMonthGrid(currentDate) : getWeekDays(currentDate);
+    return visibleDates.some((visibleDate) => toIsoDate(visibleDate) === date);
+  }
+
+  function upsertVisibleEvent(
+    currentEvents: StudyEvent[],
+    nextEvent: StudyEvent,
+  ): StudyEvent[] {
+    const withoutEvent = currentEvents.filter((event) => event.id !== nextEvent.id);
+    if (!isDateInVisibleCalendar(nextEvent.date)) {
+      return withoutEvent;
+    }
+
+    return [...withoutEvent, nextEvent];
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    const data = event.active.data.current;
+    setActiveDrag(isDragData(data) ? data : null);
+  }
+
+  function handleDragCancel(_event: DragCancelEvent) {
+    setActiveDrag(null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const dragData = event.active.data.current;
+    const dropData = event.over?.data.current;
+
+    setActiveDrag(null);
+
+    if (!isDragData(dragData) || !isDropData(dropData)) {
+      return;
+    }
+
+    const { altKey, shiftKey, y } = pointerStateRef.current;
+
+    if (dragData.type === "move-event") {
+      const originalEvent = dragData.event;
+      const newDate = dropData.date;
+      const duplicate = altKey;
+      const now = new Date().toISOString();
+      let newStartTime = originalEvent.startTime;
+
+      if (dropData.type === "day-slot") {
+        const deltaMinutes = snapMinutes(
+          event.delta.y / DRAG_CONFIG.pixelsPerMinute,
+          !shiftKey,
+        );
+        const nextStartMinutes = clamp(
+          timeToMinutes(originalEvent.startTime) + deltaMinutes,
+          0,
+          23 * 60 + 45,
+        );
+        newStartTime = minutesToTime(nextStartMinutes);
+      }
+
+      const nextEvent: StudyEvent = {
+        ...originalEvent,
+        date: newDate,
+        id: duplicate ? crypto.randomUUID() : originalEvent.id,
+        startTime: newStartTime,
+        createdAt: duplicate ? now : originalEvent.createdAt,
+        updatedAt: now,
+        scheduled: true,
+      };
+
+      if (
+        !duplicate &&
+        originalEvent.date === nextEvent.date &&
+        originalEvent.startTime === nextEvent.startTime
+      ) {
+        return;
+      }
+
+      void persistMovedEvent(originalEvent, nextEvent, duplicate);
+      return;
+    }
+
+    if (dragData.type === "schedule-from-inbox") {
+      const startTime =
+        dropData.type === "day-slot" ? dropData.getTimeFromY(y) : "09:00";
+      void persistScheduledInboxEvent(dragData.event, dropData.date, startTime);
+    }
+  }
+
+  async function persistMovedEvent(
+    originalEvent: StudyEvent,
+    nextEvent: StudyEvent,
+    duplicate: boolean,
+  ) {
+    const previousEvents = events;
+
+    setEvents((current) =>
+      duplicate
+        ? upsertVisibleEvent(current, nextEvent)
+        : current.map((event) =>
+            event.id === originalEvent.id ? nextEvent : event,
+          ),
+    );
+
+    try {
+      const saved = duplicate
+        ? await createEvent(nextEvent)
+        : await updateEvent(nextEvent);
+      setEvents((current) => upsertVisibleEvent(current, saved));
+      showToast(duplicate ? "Bloque duplicado" : "Bloque movido", "success");
+    } catch {
+      setEvents(previousEvents);
+      showToast(
+        duplicate ? "No se pudo duplicar el bloque" : "No se pudo mover el bloque",
+        "error",
+      );
+    }
+  }
+
+  async function persistScheduledInboxEvent(
+    event: StudyEvent,
+    date: string,
+    startTime: string,
+  ) {
+    const previousEvents = events;
+    const previousInboxCount = inboxCount;
+    const now = new Date().toISOString();
+    const optimisticEvent: StudyEvent = {
+      ...event,
+      date,
+      scheduled: true,
+      startTime,
+      updatedAt: now,
+    };
+
+    setOptimisticallyRemovedInboxId(event.id);
+    setInboxCount((current) => Math.max(0, current - 1));
+    setEvents((current) => upsertVisibleEvent(current, optimisticEvent));
+
+    try {
+      const saved = await scheduleEvent(event.id, date, startTime);
+      setEvents((current) => upsertVisibleEvent(current, saved));
+      showToast("Bloque programado en el calendario", "success");
+    } catch {
+      setEvents(previousEvents);
+      setInboxCount(previousInboxCount);
+      setOptimisticallyRemovedInboxId(null);
+      setRefreshKey((current) => current + 1);
+      showToast("No se pudo programar el bloque", "error");
+    }
+  }
+
+  async function handleEventResize(event: StudyEvent, durationMinutes: number) {
+    const previousEvents = events;
+    const nextEvent: StudyEvent = {
+      ...event,
+      durationMinutes,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setEvents((current) =>
+      current.map((currentEvent) =>
+        currentEvent.id === event.id ? nextEvent : currentEvent,
+      ),
+    );
+
+    try {
+      const saved = await updateEvent(nextEvent);
+      setEvents((current) =>
+        current.map((currentEvent) =>
+          currentEvent.id === saved.id ? saved : currentEvent,
+        ),
+      );
+    } catch {
+      setEvents(previousEvents);
+      showToast("No se pudo redimensionar el bloque", "error");
+    }
+  }
+
+  const showCalendarToolbar = activeView === "calendar" || activeView === "inbox";
   const editingEvent = eventModalState?.mode === "edit" ? eventModalState.event : null;
   const creationDate = eventModalState?.mode === "create" ? eventModalState.initialDate : null;
   const creationTime = eventModalState?.mode === "create" ? eventModalState.initialTime : null;
+  const creationTagId = eventModalState?.mode === "create" ? eventModalState.initialTagId : null;
   const tagFilter = getTagById(tagFilterId);
+  const activeDragTag = activeDrag ? getTagById(activeDrag.event.tagId) : null;
+  const activeDragEventId =
+    activeDrag?.type === "move-event" ? activeDrag.event.id : null;
+  const dragModifiers = useMemo(
+    () => (activeDrag?.type === "schedule-from-inbox" ? [snapCenterToCursor] : []),
+    [activeDrag?.type],
+  );
   const visibleEvents = useMemo(
     () =>
       tagFilterId
@@ -275,7 +595,15 @@ function App() {
   }, [tagFilter, tagFilterId]);
 
   return (
-    <div className={styles.appShell} data-theme={theme}>
+    <DndContext
+      collisionDetection={closestCenter}
+      modifiers={dragModifiers}
+      onDragCancel={handleDragCancel}
+      onDragEnd={handleDragEnd}
+      onDragStart={handleDragStart}
+      sensors={sensors}
+    >
+      <div className={styles.appShell} data-theme={theme}>
       <div className={styles.titlebar}>
         <Titlebar theme={theme} onToggleTheme={toggleTheme} />
       </div>
@@ -293,7 +621,9 @@ function App() {
             setTagFilterId(tagId);
           }}
           onImportClick={() => setShowImport(true)}
+          onSelectTag={(tagId) => handleSelectTag(tagId)}
           onViewChange={setActiveView}
+          selectedTagId={selectedTagId}
         />
       </aside>
 
@@ -312,20 +642,69 @@ function App() {
         >
           {activeView === "today" ? (
             <TodayView
+              onChanged={() => setRefreshKey((current) => current + 1)}
+              onEditEvent={handleEventClick}
               onCompletedChange={() =>
                 setRefreshKey((current) => current + 1)
               }
               refreshKey={refreshKey}
             />
-          ) : activeView === "inbox" ? (
-            <InboxView
-              onChanged={() => setRefreshKey((current) => current + 1)}
-              onEditEvent={(event) =>
-                setEventModalState({ mode: "edit", event })
-              }
+          ) : activeView === "tags" ? (
+            <TagsOverview
+              onCreateEventWithTag={handleCreateWithTag}
+              onEventClick={handleEventClick}
+              onFilterTag={(tagId) => {
+                setActiveView("calendar");
+                setTagFilterId(tagId);
+              }}
+              onOpenTag={(tagId) => handleSelectTag(tagId, "tags")}
               onShowToast={showToast}
               refreshKey={refreshKey}
             />
+          ) : activeView === "tag-detail" ? (
+            <TagDetailView
+              onBack={() => setActiveView(tagDetailBackView)}
+              onCreateEventWithTag={handleCreateWithTag}
+              onEventClick={handleEventClick}
+              onShowToast={showToast}
+              refreshKey={refreshKey}
+              selectedTagId={selectedTagId}
+            />
+          ) : activeView === "inbox" ? (
+            <div className={styles.inboxCalendarSplit}>
+              <div className={styles.inboxPane}>
+                <InboxView
+                  onChanged={() => setRefreshKey((current) => current + 1)}
+                  onEditEvent={(event) =>
+                    setEventModalState({ mode: "edit", event })
+                  }
+                  onShowToast={showToast}
+                  optimisticallyRemovedEventId={optimisticallyRemovedInboxId}
+                  refreshKey={refreshKey}
+                />
+              </div>
+              <div className={styles.inboxCalendarPane}>
+                {viewMode === "month" ? (
+                  <MonthView
+                    activeDragEventId={activeDragEventId}
+                    currentDate={currentDate}
+                    events={visibleEvents}
+                    onCreateOnDay={handleCreateOnDay}
+                    onDayClick={handleDayClick}
+                    onEventClick={handleEventClick}
+                  />
+                ) : (
+                  <WeekView
+                    activeDragEventId={activeDragEventId}
+                    currentDate={currentDate}
+                    events={visibleEvents}
+                    onCreateAt={handleCreateAt}
+                    onEventClick={handleEventClick}
+                    onEventResize={handleEventResize}
+                  />
+                )}
+              </div>
+            </div>
           ) : activeView === "archive" ? (
             <ArchiveView
               onEventClick={handleEventClick}
@@ -333,6 +712,7 @@ function App() {
             />
           ) : activeView === "calendar" && viewMode === "month" ? (
             <MonthView
+              activeDragEventId={activeDragEventId}
               currentDate={currentDate}
               events={visibleEvents}
               onCreateOnDay={handleCreateOnDay}
@@ -341,10 +721,12 @@ function App() {
             />
           ) : activeView === "calendar" && viewMode === "week" ? (
             <WeekView
+              activeDragEventId={activeDragEventId}
               currentDate={currentDate}
               events={visibleEvents}
               onCreateAt={handleCreateAt}
               onEventClick={handleEventClick}
+              onEventResize={handleEventResize}
             />
           ) : (
             <div className={styles.placeholder}>Calendario aqui</div>
@@ -363,13 +745,28 @@ function App() {
       <EventModal
         event={editingEvent}
         initialDate={creationDate}
+        initialTagId={creationTagId}
         initialTime={creationTime}
         onClose={() => setEventModalState(null)}
         onDeleted={handleEventDeleted}
         onSaved={handleEventSaved}
         open={eventModalState !== null}
       />
-    </div>
+      </div>
+
+      <DragOverlay>
+        {activeDrag ? (
+          <div
+            className={styles.dragGhost}
+            style={{
+              background: activeDragTag?.color ?? "#8E8E93",
+            }}
+          >
+            {activeDrag.event.title}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 

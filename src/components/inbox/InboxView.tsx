@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useDraggable } from "@dnd-kit/core";
 import {
   Calendar as CalendarIcon,
   Inbox as InboxIcon,
@@ -15,14 +16,15 @@ import {
 
 import { useTags } from "../../hooks/useTags";
 import {
-  deleteEvent,
   createEvent,
+  deleteEvent,
   getEventsInRange,
   getInboxEvents,
   scheduleEvent,
 } from "../../lib/api";
 import { toIsoDate } from "../../lib/dates";
 import type { StudyEvent } from "../../types";
+import { EventTagMenu } from "../tags/EventTagMenu";
 import styles from "./InboxView.module.css";
 
 interface InboxViewProps {
@@ -30,6 +32,7 @@ interface InboxViewProps {
   onChanged: () => void;
   onShowToast: (message: string, kind: "success" | "info" | "error") => void;
   onEditEvent: (event: StudyEvent) => void;
+  optimisticallyRemovedEventId?: string | null;
 }
 
 const NEUTRAL_EVENT_COLOR = "#8e8e93";
@@ -85,7 +88,7 @@ function findNextSlot(
   occupiedByDate: Map<string, Array<{ start: number; end: number }>>,
   startFrom: Date,
 ): Slot {
-  let cursor = new Date(startFrom);
+  const cursor = new Date(startFrom);
 
   for (let dayOffset = 0; dayOffset < 90; dayOffset += 1) {
     const day = addDays(cursor, dayOffset);
@@ -114,10 +117,11 @@ function findNextSlot(
 }
 
 export function InboxView({
+  optimisticallyRemovedEventId = null,
   refreshKey,
   onChanged,
-  onShowToast,
   onEditEvent,
+  onShowToast,
 }: InboxViewProps) {
   const { getTagById } = useTags();
   const [events, setEvents] = useState<StudyEvent[]>([]);
@@ -141,6 +145,16 @@ export function InboxView({
   useEffect(() => {
     void reload();
   }, [reload, refreshKey]);
+
+  useEffect(() => {
+    if (!optimisticallyRemovedEventId) {
+      return;
+    }
+
+    setEvents((current) =>
+      current.filter((event) => event.id !== optimisticallyRemovedEventId),
+    );
+  }, [optimisticallyRemovedEventId]);
 
   const totalMinutes = useMemo(
     () => events.reduce((sum, event) => sum + event.durationMinutes, 0),
@@ -240,7 +254,7 @@ export function InboxView({
           occupied.set(slot.date, list);
           scheduled += 1;
         } catch {
-          /* skip on failure */
+          /* skip failed items */
         }
       }
 
@@ -261,10 +275,8 @@ export function InboxView({
         </header>
         <div className={styles.emptyState}>
           <InboxIcon className={styles.emptyIcon} size={48} strokeWidth={1.5} />
-          <h2 className={styles.emptyTitle}>Bandeja vacía</h2>
-          <p className={styles.emptyText}>
-            Todos los bloques están programados
-          </p>
+          <h2 className={styles.emptyTitle}>Bandeja vacia</h2>
+          <p className={styles.emptyText}>Todos los bloques estan programados</p>
         </div>
       </section>
     );
@@ -275,7 +287,7 @@ export function InboxView({
       <header className={styles.header}>
         <h1 className={styles.title}>Inbox</h1>
         <p className={styles.subtitle}>
-          {events.length} bloques pendientes de organizar ·{" "}
+          {events.length} bloques pendientes de organizar -{" "}
           {formatTotalHours(totalMinutes)}
         </p>
       </header>
@@ -283,10 +295,8 @@ export function InboxView({
       {events.length > 0 ? (
         <div className={styles.banner}>
           <div className={styles.bannerText}>
-            <strong>Tienes días pendientes de organizar</strong>
-            <span>
-              Arrastra los bloques al calendario o usa autoplanificar
-            </span>
+            <strong>Tienes dias pendientes de organizar</strong>
+            <span>Arrastra los bloques al calendario o usa autoplanificar</span>
           </div>
           <button
             className={styles.autoplanButton}
@@ -309,115 +319,173 @@ export function InboxView({
             const color = tag?.color ?? NEUTRAL_EVENT_COLOR;
 
             return (
-              <article
-                className={styles.card}
-                draggable
+              <InboxCard
+                color={color}
+                event={event}
                 key={event.id}
-                onDragStart={(dragEvent) => {
-                  dragEvent.dataTransfer.setData(
-                    "application/x-studyflow-inbox-event",
-                    event.id,
+                menuOpen={menuOpenId === event.id}
+                onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
+                onEditEvent={onEditEvent}
+                onSchedule={handleSchedule}
+                onEventChanged={(updated) => {
+                  setEvents((current) =>
+                    current.map((currentEvent) =>
+                      currentEvent.id === updated.id ? updated : currentEvent,
+                    ),
                   );
-                  dragEvent.dataTransfer.effectAllowed = "move";
+                  onChanged();
                 }}
-                style={
-                  {
-                    "--event-color": color,
-                  } as CSSProperties
-                }
-              >
-                <div className={styles.cardBody}>
-                  <h2 className={styles.cardTitle}>{event.title}</h2>
-                  {event.description ? (
-                    <p className={styles.cardDescription}>{event.description}</p>
-                  ) : null}
-                  <div className={styles.metaRow}>
-                    <span className={styles.metaChip}>
-                      {formatDuration(event.durationMinutes)}
-                    </span>
-                    <span
-                      className={`${styles.metaChip} ${styles[`priority_${event.priority}`]}`}
-                    >
-                      {PRIORITY_LABEL[event.priority]}
-                    </span>
-                    <span
-                      className={styles.tagChip}
-                      style={{
-                        backgroundColor: `${color}24`,
-                        color,
-                      }}
-                    >
-                      {tag?.name ?? "Sin etiqueta"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className={styles.cardActions}>
-                  <button
-                    className={styles.scheduleButton}
-                    onClick={() =>
-                      setPickerOpenId(pickerOpenId === event.id ? null : event.id)
-                    }
-                    type="button"
-                  >
-                    <CalendarIcon size={13} strokeWidth={1.75} />
-                    Programar
-                  </button>
-
-                  <div className={styles.menuWrap}>
-                    <button
-                      aria-label="Más acciones"
-                      className={styles.menuButton}
-                      onClick={() =>
-                        setMenuOpenId(menuOpenId === event.id ? null : event.id)
-                      }
-                      type="button"
-                    >
-                      <MoreHorizontal size={14} strokeWidth={1.75} />
-                    </button>
-                    {menuOpenId === event.id ? (
-                      <div className={styles.menu}>
-                        <button
-                          onClick={() => {
-                            setMenuOpenId(null);
-                            onEditEvent(event);
-                          }}
-                          type="button"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDuplicate(event)}
-                          type="button"
-                        >
-                          Duplicar
-                        </button>
-                        <button
-                          data-danger="true"
-                          onClick={() => handleDelete(event.id)}
-                          type="button"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                {pickerOpenId === event.id ? (
-                  <SchedulePicker
-                    onCancel={() => setPickerOpenId(null)}
-                    onSubmit={(date, startTime) =>
-                      handleSchedule(event.id, date, startTime)
-                    }
-                  />
-                ) : null}
-              </article>
+                pickerOpen={pickerOpenId === event.id}
+                priorityLabel={PRIORITY_LABEL[event.priority]}
+                setMenuOpenId={setMenuOpenId}
+                setPickerOpenId={setPickerOpenId}
+                tagName={tag?.name ?? "Sin etiqueta"}
+              />
             );
           })}
         </div>
       )}
     </section>
+  );
+}
+
+interface InboxCardProps {
+  color: string;
+  event: StudyEvent;
+  menuOpen: boolean;
+  onDelete: (id: string) => void;
+  onDuplicate: (event: StudyEvent) => void;
+  onEditEvent: (event: StudyEvent) => void;
+  onEventChanged: (event: StudyEvent) => void;
+  onSchedule: (id: string, date: string, startTime: string) => void;
+  pickerOpen: boolean;
+  priorityLabel: string;
+  setMenuOpenId: (id: string | null) => void;
+  setPickerOpenId: (id: string | null) => void;
+  tagName: string;
+}
+
+function InboxCard({
+  color,
+  event,
+  menuOpen,
+  onDelete,
+  onDuplicate,
+  onEditEvent,
+  onEventChanged,
+  onSchedule,
+  pickerOpen,
+  priorityLabel,
+  setMenuOpenId,
+  setPickerOpenId,
+  tagName,
+}: InboxCardProps) {
+  const { attributes, isDragging, listeners, setNodeRef, transform } =
+    useDraggable({
+      id: `inbox-${event.id}`,
+      data: { type: "schedule-from-inbox", event },
+    });
+  const dragStyle = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: 100,
+        opacity: 0.85,
+      }
+    : undefined;
+
+  return (
+    <article
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ""}`}
+      ref={setNodeRef}
+      style={
+        {
+          "--event-color": color,
+          ...dragStyle,
+        } as CSSProperties
+      }
+      {...listeners}
+      {...attributes}
+    >
+      <div className={styles.cardBody}>
+        <h2 className={styles.cardTitle}>{event.title}</h2>
+        {event.description ? (
+          <p className={styles.cardDescription}>{event.description}</p>
+        ) : null}
+        <div className={styles.metaRow}>
+          <span className={styles.metaChip}>
+            {formatDuration(event.durationMinutes)}
+          </span>
+          <span
+            className={`${styles.metaChip} ${styles[`priority_${event.priority}`]}`}
+          >
+            {priorityLabel}
+          </span>
+          <span
+            className={styles.tagChip}
+            style={{
+              backgroundColor: `${color}24`,
+              color,
+            }}
+          >
+            {tagName}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.cardActions}>
+        <button
+          className={styles.scheduleButton}
+          onClick={() => setPickerOpenId(pickerOpen ? null : event.id)}
+          type="button"
+        >
+          <CalendarIcon size={13} strokeWidth={1.75} />
+          Programar
+        </button>
+
+        <div className={styles.menuWrap}>
+          <button
+            aria-label="Mas acciones"
+            className={styles.menuButton}
+            onClick={() => setMenuOpenId(menuOpen ? null : event.id)}
+            type="button"
+          >
+            <MoreHorizontal size={14} strokeWidth={1.75} />
+          </button>
+          {menuOpen ? (
+            <div className={styles.menu}>
+              <button
+                onClick={() => {
+                  setMenuOpenId(null);
+                  onEditEvent(event);
+                }}
+                type="button"
+              >
+                Editar
+              </button>
+              <button onClick={() => onDuplicate(event)} type="button">
+                Duplicar
+              </button>
+              <button
+                data-danger="true"
+                onClick={() => onDelete(event.id)}
+                type="button"
+              >
+                Eliminar
+              </button>
+            </div>
+          ) : null}
+        </div>
+        <EventTagMenu event={event} onChanged={onEventChanged} />
+      </div>
+
+      {pickerOpen ? (
+        <SchedulePicker
+          onCancel={() => setPickerOpenId(null)}
+          onSubmit={(date, startTime) => onSchedule(event.id, date, startTime)}
+        />
+      ) : null}
+    </article>
   );
 }
 

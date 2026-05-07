@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { StudyEvent, Tag } from "../types";
+import type { StudyEvent, Tag, TagStats, TagViewOptions } from "../types";
 
 export function getTags(): Promise<Tag[]> {
   return invoke<Tag[]>("get_tags");
@@ -33,6 +33,24 @@ export function reorderTags(ids: string[]): Promise<void> {
 
 export function countEventsByTag(id: string): Promise<number> {
   return invoke<number>("count_events_by_tag", { id });
+}
+
+export function getEventsByTag(
+  tagId: string,
+  options: TagViewOptions,
+): Promise<StudyEvent[]> {
+  return invoke<StudyEvent[]>("get_events_by_tag", { tagId, options });
+}
+
+export function getTagStats(tagId: string): Promise<TagStats> {
+  return invoke<TagStats>("get_tag_stats", { tagId });
+}
+
+export function bulkChangeTag(
+  eventIds: string[],
+  newTagId: string | null,
+): Promise<number> {
+  return invoke<number>("bulk_change_tag", { eventIds, newTagId });
 }
 
 export function getEventsInRange(

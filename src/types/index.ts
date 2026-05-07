@@ -28,3 +28,18 @@ export interface ImportedPlanning {
   events: StudyEvent[];
   warnings: string[];
 }
+
+export interface TagViewOptions {
+  upcomingOnly: boolean;
+  includeInbox: boolean;
+  inboxOnly?: boolean | null;
+  limit?: number | null;
+  offset?: number | null;
+}
+
+export interface TagStats {
+  totalEvents: number;
+  totalMinutes: number;
+  completedCount: number;
+  nextEventDate: string | null;
+}

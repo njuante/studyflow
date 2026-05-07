@@ -108,6 +108,11 @@
   cursor: grabbing;
 }
 
+.cardDragging {
+  cursor: grabbing;
+  box-shadow: var(--shadow-md);
+}
+
 .cardBody {
   min-width: 0;
 }

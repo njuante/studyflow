@@ -1,13 +1,13 @@
 use std::fs;
 
 use chrono::Utc;
-use rusqlite::{params, types::Type, Connection, Row};
+use rusqlite::{params, types::Type, Connection, OptionalExtension, Row};
 use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    models::{StudyEvent, StudyEventType, StudyPriority, Tag},
+    models::{StudyEvent, StudyEventType, StudyPriority, Tag, TagStats, TagViewOptions},
 };
 
 const DEFAULT_TAGS: [(&str, &str, &str, Option<&str>); 4] = [
@@ -343,6 +343,119 @@ pub fn count_events_by_tag(connection: &Connection, id: &str) -> Result<i64, App
     )?;
 
     Ok(count)
+}
+
+pub fn get_events_by_tag(
+    connection: &Connection,
+    tag_id: &str,
+    today: &str,
+    options: &TagViewOptions,
+) -> Result<Vec<StudyEvent>, AppError> {
+    let limit = options.limit.unwrap_or(100);
+    let offset = options.offset.unwrap_or(0);
+    let inbox_only = options.inbox_only.unwrap_or(false);
+
+    let mut statement = connection.prepare(
+        "
+        SELECT id, title, description, date, start_time, duration_minutes, tag_id, type, priority, created_at, updated_at, scheduled, completed, completed_at
+        FROM events
+        WHERE tag_id = ?1
+          AND (?7 = 0 OR scheduled = 0)
+          AND (?2 = 1 OR ?7 = 1 OR scheduled = 1)
+          AND (?3 = 0 OR ?7 = 1 OR (scheduled = 1 AND date >= ?4) OR (?2 = 1 AND scheduled = 0))
+        ORDER BY scheduled DESC, date ASC, start_time ASC, created_at DESC
+        LIMIT ?5 OFFSET ?6
+        ",
+    )?;
+
+    let rows = statement.query_map(
+        params![
+            tag_id,
+            if options.include_inbox { 1 } else { 0 },
+            if options.upcoming_only { 1 } else { 0 },
+            today,
+            limit,
+            offset,
+            if inbox_only { 1 } else { 0 },
+        ],
+        map_study_event,
+    )?;
+    let events = rows.collect::<Result<Vec<_>, _>>()?;
+    Ok(events)
+}
+
+pub fn get_tag_stats(
+    connection: &Connection,
+    tag_id: &str,
+    today: &str,
+) -> Result<TagStats, AppError> {
+    let (total_events, total_minutes, completed_count) = connection.query_row(
+        "
+        SELECT
+          COUNT(*),
+          COALESCE(SUM(duration_minutes), 0),
+          COALESCE(SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END), 0)
+        FROM events
+        WHERE tag_id = ?1
+        ",
+        params![tag_id],
+        |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        },
+    )?;
+
+    let next_event_date = connection
+        .query_row(
+            "
+            SELECT date
+            FROM events
+            WHERE tag_id = ?1 AND scheduled = 1 AND completed = 0 AND date >= ?2
+            ORDER BY date ASC, start_time ASC
+            LIMIT 1
+            ",
+            params![tag_id, today],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+
+    Ok(TagStats {
+        total_events,
+        total_minutes,
+        completed_count,
+        next_event_date,
+    })
+}
+
+pub fn bulk_change_tag(
+    connection: &mut Connection,
+    event_ids: &[String],
+    new_tag_id: Option<&str>,
+) -> Result<usize, AppError> {
+    let transaction = connection.transaction()?;
+    let updated_at = chrono::Utc::now().to_rfc3339();
+    let mut changed = 0usize;
+
+    {
+        let mut statement = transaction.prepare(
+            "
+            UPDATE events
+            SET tag_id = ?2,
+                updated_at = ?3
+            WHERE id = ?1
+            ",
+        )?;
+
+        for id in event_ids {
+            changed += statement.execute(params![id, new_tag_id, &updated_at])?;
+        }
+    }
+
+    transaction.commit()?;
+    Ok(changed)
 }
 
 pub fn get_events_in_range(

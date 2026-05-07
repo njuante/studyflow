@@ -15,6 +15,7 @@ import {
   Sparkles,
   Star,
   Sun,
+  Tags,
   Target,
   Zap,
   type LucideIcon,
@@ -27,14 +28,16 @@ import { useTags } from "../../hooks/useTags";
 import type { Tag } from "../../types";
 import styles from "./Sidebar.module.css";
 
-export type SidebarView = "today" | "calendar" | "inbox" | "archive";
+export type SidebarView = "today" | "calendar" | "tags" | "tag-detail" | "inbox" | "archive";
 
 interface SidebarProps {
   activeView: SidebarView;
   onViewChange: (view: SidebarView) => void;
+  onSelectTag: (tagId: string) => void;
   onImportClick: () => void;
   onFilterTag: (tagId: string) => void;
   inboxCount: number;
+  selectedTagId?: string | null;
 }
 
 interface NavItem {
@@ -62,6 +65,7 @@ interface DeleteConfirmState {
 const NAV_ITEMS: NavItem[] = [
   { id: "today", label: "Hoy", icon: Sun },
   { id: "calendar", label: "Calendario", icon: Calendar },
+  { id: "tags", label: "Etiquetas", icon: Tags },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "archive", label: "Archivo", icon: Archive },
 ];
@@ -98,8 +102,10 @@ export function Sidebar({
   activeView,
   onFilterTag,
   onImportClick,
+  onSelectTag,
   onViewChange,
   inboxCount,
+  selectedTagId = null,
 }: SidebarProps) {
   const { createTag, deleteTag, tags, updateTag } = useTags();
   const [editor, setEditor] = useState<TagEditorState>(null);
@@ -137,7 +143,10 @@ export function Sidebar({
             return (
               <button
                 className={`${styles.navItem} ${
-                  activeView === id ? styles.active : ""
+                  activeView === id ||
+                  (id === "tags" && activeView === "tag-detail")
+                    ? styles.active
+                    : ""
                 }`}
                 key={id}
                 onClick={() => onViewChange(id)}
@@ -173,8 +182,13 @@ export function Sidebar({
 
             return (
               <button
-                className={styles.tagItem}
+                className={`${styles.tagItem} ${
+                  activeView === "tag-detail" && selectedTagId === tag.id
+                    ? styles.tagItemActive
+                    : ""
+                }`}
                 key={tag.id}
+                onClick={() => onSelectTag(tag.id)}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setContextMenu({ tag, x: event.clientX, y: event.clientY });

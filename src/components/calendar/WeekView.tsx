@@ -1,14 +1,26 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { useTags } from "../../hooks/useTags";
 import { getWeekDays, isToday, toIsoDate } from "../../lib/dates";
+import { DRAG_CONFIG } from "../../lib/dragConfig";
 import type { StudyEvent } from "../../types";
 import styles from "./WeekView.module.css";
 
 interface WeekViewProps {
   currentDate: Date;
   events: StudyEvent[];
+  activeDragEventId?: string | null;
   onEventClick: (event: StudyEvent) => void;
+  onEventResize: (event: StudyEvent, durationMinutes: number) => void;
   onCreateAt: (date: Date, time: string) => void;
 }
 
@@ -16,11 +28,21 @@ const START_HOUR = 7;
 const END_HOUR = 22;
 const HOUR_HEIGHT = 60;
 const TOTAL_HOURS = END_HOUR - START_HOUR + 1;
-const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const DAY_NAMES = ["Lun", "Mar", "MiÃ©", "Jue", "Vie", "SÃ¡b", "Dom"];
 const NEUTRAL_EVENT_COLOR = "#8e8e93";
 
 function padTimeUnit(value: number): string {
   return `${value}`.padStart(2, "0");
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${padTimeUnit(hours)}:${padTimeUnit(remainingMinutes)}`;
 }
 
 function formatTimeRange(startTime: string, durationMinutes: number): string {
@@ -30,7 +52,7 @@ function formatTimeRange(startTime: string, durationMinutes: number): string {
   const endHours = Math.floor(endTotalMinutes / 60);
   const endMinutes = endTotalMinutes % 60;
 
-  return `${startTime} – ${padTimeUnit(endHours)}:${padTimeUnit(endMinutes)}`;
+  return `${startTime} â€“ ${padTimeUnit(endHours)}:${padTimeUnit(endMinutes)}`;
 }
 
 function roundMinutesToHalfHour(minutes: number): number {
@@ -39,11 +61,18 @@ function roundMinutesToHalfHour(minutes: number): number {
   return 60;
 }
 
+function snapOffsetMinutes(offsetY: number): number {
+  const rawMinutes = offsetY / DRAG_CONFIG.pixelsPerMinute;
+  return Math.round(rawMinutes / DRAG_CONFIG.snapMinutes) * DRAG_CONFIG.snapMinutes;
+}
+
 export function WeekView({
+  activeDragEventId = null,
   currentDate,
   events,
   onCreateAt,
   onEventClick,
+  onEventResize,
 }: WeekViewProps) {
   const { getTagById } = useTags();
   const [now, setNow] = useState(() => new Date());
@@ -107,50 +136,14 @@ export function WeekView({
             })}
           </div>
 
-          {weekDays.map((day, index) => {
-            const isoDate = toIsoDate(day);
-            return (
-              <div
-                className={`${styles.dayColumn} ${isToday(day) ? styles.dayColumnToday : ""}`}
-                data-day-index={index}
-                data-iso={isoDate}
-                key={isoDate}
-                onClick={(event) => {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  const offsetY = Math.max(0, event.clientY - rect.top);
-                  const totalMinutes = Math.min(
-                    TOTAL_HOURS * HOUR_HEIGHT - 1,
-                    Math.floor(offsetY),
-                  );
-                  const hourOffset = Math.floor(totalMinutes / HOUR_HEIGHT);
-                  const minuteInHour = totalMinutes % HOUR_HEIGHT;
-                  const roundedMinutes = roundMinutesToHalfHour(minuteInHour);
-                  const hour =
-                    START_HOUR + hourOffset + (roundedMinutes === 60 ? 1 : 0);
-                  const minutes = roundedMinutes === 60 ? 0 : roundedMinutes;
-                  const time = `${padTimeUnit(hour)}:${padTimeUnit(minutes)}`;
-                  onCreateAt(day, time);
-                }}
-              >
-                {Array.from({ length: TOTAL_HOURS }, (_, hourIndex) => (
-                  <div
-                    className={styles.hourLine}
-                    key={`hour-line-${hourIndex}`}
-                    style={{ top: `${hourIndex * HOUR_HEIGHT}px` }}
-                  />
-                ))}
-                {Array.from({ length: TOTAL_HOURS }, (_, hourIndex) => (
-                  <div
-                    className={styles.halfHourLine}
-                    key={`half-hour-line-${hourIndex}`}
-                    style={{
-                      top: `${hourIndex * HOUR_HEIGHT + HOUR_HEIGHT / 2}px`,
-                    }}
-                  />
-                ))}
-              </div>
-            );
-          })}
+          {weekDays.map((day, index) => (
+            <WeekDayColumn
+              day={day}
+              index={index}
+              key={toIsoDate(day)}
+              onCreateAt={onCreateAt}
+            />
+          ))}
         </div>
 
         <div className={styles.eventsLayer}>
@@ -161,48 +154,16 @@ export function WeekView({
 
             return (
               <div className={styles.eventsColumn} key={toIsoDate(day)}>
-                {columnEntries.map(({ event }) => {
-                  const tag = getTagById(event.tagId);
-                  const isUntagged = event.tagId === null || !tag;
-                  const [startHour, startMinutes] = event.startTime
-                    .split(":")
-                    .map(Number);
-                  const top =
-                    (startHour - START_HOUR) * HOUR_HEIGHT + startMinutes;
-                  const height = Math.max(20, event.durationMinutes);
-
-                  return (
-                    <button
-                      className={`${styles.eventBlock} ${
-                        isUntagged ? styles.untaggedEvent : ""
-                      }`}
-                      key={event.id}
-                      onClick={(clickEvent) => {
-                        clickEvent.stopPropagation();
-                        onEventClick(event);
-                      }}
-                      style={
-                        {
-                          "--event-color": tag?.color ?? NEUTRAL_EVENT_COLOR,
-                          top: `${top}px`,
-                          height: `${height}px`,
-                        } as CSSProperties
-                      }
-                      title={tag ? tag.name : "Sin etiqueta"}
-                      type="button"
-                    >
-                      <span className={styles.eventTitle}>{event.title}</span>
-                      {event.durationMinutes > 35 ? (
-                        <span className={styles.eventTime}>
-                          {formatTimeRange(
-                            event.startTime,
-                            event.durationMinutes,
-                          )}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                {columnEntries.map(({ event }) => (
+                  <WeekEventBlock
+                    activeDragEventId={activeDragEventId}
+                    event={event}
+                    getTagById={getTagById}
+                    key={event.id}
+                    onEventClick={onEventClick}
+                    onEventResize={onEventResize}
+                  />
+                ))}
 
                 {showNowIndicator &&
                 nowWithinRange &&
@@ -228,7 +189,245 @@ export function WeekView({
           ) : null}
         </div>
       </div>
-
     </section>
+  );
+}
+
+interface WeekDayColumnProps {
+  day: Date;
+  index: number;
+  onCreateAt: (date: Date, time: string) => void;
+}
+
+function WeekDayColumn({ day, index, onCreateAt }: WeekDayColumnProps) {
+  const isoDate = toIsoDate(day);
+  const columnRef = useRef<HTMLDivElement | null>(null);
+  const getTimeFromY = useCallback((clientY: number) => {
+    const rect = columnRef.current?.getBoundingClientRect();
+    const offsetY = rect ? clientY - rect.top : 0;
+    const snappedOffset = snapOffsetMinutes(
+      clamp(offsetY, 0, TOTAL_HOURS * HOUR_HEIGHT - 1),
+    );
+    const totalMinutes = clamp(
+      START_HOUR * 60 + snappedOffset,
+      0,
+      23 * 60 + 45,
+    );
+    return minutesToTime(totalMinutes);
+  }, []);
+  const { isOver, setNodeRef } = useDroppable({
+    id: `day-${index}-${isoDate}`,
+    data: { type: "day-slot", date: isoDate, getTimeFromY },
+  });
+  const setRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      columnRef.current = node;
+      setNodeRef(node);
+    },
+    [setNodeRef],
+  );
+
+  function handleColumnClick(event: MouseEvent<HTMLDivElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetY = Math.max(0, event.clientY - rect.top);
+    const totalMinutes = Math.min(
+      TOTAL_HOURS * HOUR_HEIGHT - 1,
+      Math.floor(offsetY),
+    );
+    const hourOffset = Math.floor(totalMinutes / HOUR_HEIGHT);
+    const minuteInHour = totalMinutes % HOUR_HEIGHT;
+    const roundedMinutes = roundMinutesToHalfHour(minuteInHour);
+    const hour = START_HOUR + hourOffset + (roundedMinutes === 60 ? 1 : 0);
+    const minutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+    const time = `${padTimeUnit(hour)}:${padTimeUnit(minutes)}`;
+    onCreateAt(day, time);
+  }
+
+  return (
+    <div
+      className={`${styles.dayColumn} ${isToday(day) ? styles.dayColumnToday : ""} ${
+        isOver ? styles.dayColumnOver : ""
+      }`}
+      data-day-index={index}
+      data-iso={isoDate}
+      onClick={handleColumnClick}
+      ref={setRefs}
+    >
+      {Array.from({ length: TOTAL_HOURS }, (_, hourIndex) => (
+        <div
+          className={styles.hourLine}
+          key={`hour-line-${hourIndex}`}
+          style={{ top: `${hourIndex * HOUR_HEIGHT}px` }}
+        />
+      ))}
+      {Array.from({ length: TOTAL_HOURS }, (_, hourIndex) => (
+        <div
+          className={styles.halfHourLine}
+          key={`half-hour-line-${hourIndex}`}
+          style={{
+            top: `${hourIndex * HOUR_HEIGHT + HOUR_HEIGHT / 2}px`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+interface WeekEventBlockProps {
+  activeDragEventId: string | null;
+  event: StudyEvent;
+  getTagById: ReturnType<typeof useTags>["getTagById"];
+  onEventClick: (event: StudyEvent) => void;
+  onEventResize: (event: StudyEvent, durationMinutes: number) => void;
+}
+
+function WeekEventBlock({
+  activeDragEventId,
+  event,
+  getTagById,
+  onEventClick,
+  onEventResize,
+}: WeekEventBlockProps) {
+  const [localDuration, setLocalDuration] = useState(event.durationMinutes);
+  const [isResizing, setIsResizing] = useState(false);
+  const localDurationRef = useRef(event.durationMinutes);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickUntilRef = useRef(0);
+  const tag = getTagById(event.tagId);
+  const isUntagged = event.tagId === null || !tag;
+  const { attributes, isDragging, listeners, setNodeRef, transform } =
+    useDraggable({
+      id: `event-${event.id}`,
+      data: { type: "move-event", event },
+      disabled: isResizing,
+    });
+  const [startHour, startMinutes] = event.startTime.split(":").map(Number);
+  const top = (startHour - START_HOUR) * HOUR_HEIGHT + startMinutes;
+  const height = Math.max(20, localDuration);
+  const isDimmed = Boolean(activeDragEventId && activeDragEventId !== event.id);
+  const dragStyle = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: 100,
+        opacity: 0.85,
+      }
+    : undefined;
+
+  useEffect(() => {
+    setLocalDuration(event.durationMinutes);
+    localDurationRef.current = event.durationMinutes;
+  }, [event.durationMinutes]);
+
+  function handleResizeStart(eventPointer: React.PointerEvent<HTMLDivElement>) {
+    eventPointer.preventDefault();
+    eventPointer.stopPropagation();
+
+    const startY = eventPointer.clientY;
+    const startDuration = localDurationRef.current;
+    setIsResizing(true);
+
+    function onMove(pointerEvent: PointerEvent) {
+      pointerEvent.preventDefault();
+      const deltaMinutes =
+        (pointerEvent.clientY - startY) / DRAG_CONFIG.pixelsPerMinute;
+      const snappedDelta =
+        Math.round(deltaMinutes / DRAG_CONFIG.snapMinutes) *
+        DRAG_CONFIG.snapMinutes;
+      const nextDuration = clamp(
+        startDuration + snappedDelta,
+        DRAG_CONFIG.minDurationMinutes,
+        DRAG_CONFIG.maxDurationMinutes,
+      );
+
+      localDurationRef.current = nextDuration;
+      setLocalDuration(nextDuration);
+    }
+
+    function onUp() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      setIsResizing(false);
+      suppressClickUntilRef.current = Date.now() + 250;
+
+      if (localDurationRef.current !== startDuration) {
+        onEventResize(event, localDurationRef.current);
+      }
+    }
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
+  function handleEventActivation() {
+    onEventClick(event);
+  }
+
+  return (
+    <div
+      className={`${styles.eventBlock} ${isUntagged ? styles.untaggedEvent : ""} ${
+        isDragging ? styles.eventBlockDragging : ""
+      } ${isDimmed ? styles.eventBlockDimmed : ""}`}
+      onClick={(clickEvent) => {
+        const start = pointerStartRef.current;
+        if (Date.now() < suppressClickUntilRef.current || isResizing) {
+          clickEvent.stopPropagation();
+          return;
+        }
+
+        if (start) {
+          const distance = Math.hypot(
+            clickEvent.clientX - start.x,
+            clickEvent.clientY - start.y,
+          );
+          if (distance > DRAG_CONFIG.activationDistance) {
+            clickEvent.stopPropagation();
+            return;
+          }
+        }
+
+        clickEvent.stopPropagation();
+        handleEventActivation();
+      }}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+          keyboardEvent.preventDefault();
+          handleEventActivation();
+        }
+      }}
+      onPointerDownCapture={(pointerEvent) => {
+        pointerStartRef.current = {
+          x: pointerEvent.clientX,
+          y: pointerEvent.clientY,
+        };
+      }}
+      ref={setNodeRef}
+      style={
+        {
+          "--event-color": tag?.color ?? NEUTRAL_EVENT_COLOR,
+          top: `${top}px`,
+          height: `${height}px`,
+          ...dragStyle,
+        } as CSSProperties
+      }
+      title={tag ? tag.name : "Sin etiqueta"}
+      {...listeners}
+      {...attributes}
+    >
+      <span className={styles.eventTitle}>{event.title}</span>
+      {localDuration > 35 ? (
+        <span className={styles.eventTime}>
+          {formatTimeRange(event.startTime, localDuration)}
+        </span>
+      ) : null}
+      <div
+        className={styles.resizeHandle}
+        onClick={(clickEvent) => {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+        }}
+        onPointerDown={handleResizeStart}
+        style={{ height: DRAG_CONFIG.resizeHandleHeight }}
+      />
+    </div>
   );
 }

@@ -4,11 +4,14 @@ import { Sun } from "lucide-react";
 import { useTags } from "../../hooks/useTags";
 import { completeEvent, getTodayEvents } from "../../lib/api";
 import type { StudyEvent } from "../../types";
+import { EventTagMenu } from "../tags/EventTagMenu";
 import styles from "./TodayView.module.css";
 
 interface TodayViewProps {
   refreshKey: number;
   onCompletedChange?: () => void;
+  onChanged?: () => void;
+  onEditEvent?: (event: StudyEvent) => void;
 }
 
 const NEUTRAL_EVENT_COLOR = "#8e8e93";
@@ -51,7 +54,12 @@ function formatEndTime(startTime: string, durationMinutes: number): string {
   return `${`${endHours}`.padStart(2, "0")}:${`${endMinutes}`.padStart(2, "0")}`;
 }
 
-export function TodayView({ refreshKey, onCompletedChange }: TodayViewProps) {
+export function TodayView({
+  refreshKey,
+  onChanged,
+  onCompletedChange,
+  onEditEvent,
+}: TodayViewProps) {
   const { getTagById } = useTags();
   const [events, setEvents] = useState<StudyEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,6 +107,7 @@ export function TodayView({ refreshKey, onCompletedChange }: TodayViewProps) {
         current.map((event) => (event.id === id ? updated : event)),
       );
       onCompletedChange?.();
+      onChanged?.();
     } catch {
       /* swallow - UI stays consistent on next refresh */
     }
@@ -174,6 +183,18 @@ export function TodayView({ refreshKey, onCompletedChange }: TodayViewProps) {
                     />
                     <span>Hecho</span>
                   </label>
+                  <EventTagMenu
+                    event={event}
+                    onChanged={(updated) => {
+                      setEvents((current) =>
+                        current.map((currentEvent) =>
+                          currentEvent.id === updated.id ? updated : currentEvent,
+                        ),
+                      );
+                      onChanged?.();
+                    }}
+                    onEdit={onEditEvent}
+                  />
                 </div>
               </article>
             );

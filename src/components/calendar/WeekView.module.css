@@ -101,6 +101,12 @@
   background-color: color-mix(in srgb, var(--accent) 4%, transparent);
 }
 
+.dayColumnOver {
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .dayColumnToday {
   background-color: color-mix(in srgb, var(--accent) 5%, transparent);
 }
@@ -158,8 +164,9 @@
   overflow: hidden;
   white-space: nowrap;
   pointer-events: auto;
-  cursor: pointer;
+  cursor: grab;
   transition:
+    opacity 80ms ease,
     filter 80ms ease,
     transform 80ms ease;
 }
@@ -167,6 +174,42 @@
 .eventBlock:hover {
   filter: brightness(1.04);
   transform: translateY(-1px);
+}
+
+.eventBlock:active,
+.eventBlockDragging {
+  cursor: grabbing;
+}
+
+.eventBlockDimmed {
+  opacity: 0.5;
+}
+
+.resizeHandle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  cursor: ns-resize;
+  opacity: 0;
+  transition: opacity 80ms ease;
+}
+
+.resizeHandle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--event-color) 60%, white);
+  transform: translateY(-50%);
+}
+
+.eventBlock:hover .resizeHandle,
+.eventBlockDragging .resizeHandle {
+  opacity: 0.4;
 }
 
 .eventTitle {

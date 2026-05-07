@@ -4,7 +4,7 @@ use tauri::{State, WebviewWindow};
 use crate::{
     db,
     error::AppError,
-    models::{StudyEvent, Tag},
+    models::{StudyEvent, Tag, TagStats, TagViewOptions},
     DbState,
 };
 
@@ -74,6 +74,46 @@ pub async fn count_events_by_tag(
         .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
 
     db::count_events_by_tag(&connection, &id)
+}
+
+#[tauri::command]
+pub async fn get_events_by_tag(
+    tag_id: String,
+    options: TagViewOptions,
+    db_state: State<'_, DbState>,
+) -> Result<Vec<StudyEvent>, AppError> {
+    let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
+    let connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::get_events_by_tag(&connection, &tag_id, &today, &options)
+}
+
+#[tauri::command]
+pub async fn get_tag_stats(
+    tag_id: String,
+    db_state: State<'_, DbState>,
+) -> Result<TagStats, AppError> {
+    let today = Local::now().date_naive().format("%Y-%m-%d").to_string();
+    let connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::get_tag_stats(&connection, &tag_id, &today)
+}
+
+#[tauri::command]
+pub async fn bulk_change_tag(
+    event_ids: Vec<String>,
+    new_tag_id: Option<String>,
+    db_state: State<'_, DbState>,
+) -> Result<usize, AppError> {
+    let mut connection = db_state
+        .lock()
+        .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
+
+    db::bulk_change_tag(&mut connection, &event_ids, new_tag_id.as_deref())
 }
 
 #[tauri::command]

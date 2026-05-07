@@ -12,6 +12,7 @@ interface EventModalProps {
   event?: StudyEvent | null;
   initialDate?: Date | null;
   initialTime?: string | null;
+  initialTagId?: string | null;
   onClose: () => void;
   onSaved: (event: StudyEvent, mode: "create" | "update") => void;
   onDeleted: (id: string) => void;
@@ -53,6 +54,7 @@ function buildInitialState(
   event?: StudyEvent | null,
   initialDate?: Date | null,
   initialTime?: string | null,
+  initialTagId?: string | null,
 ): EventFormState {
   if (event) {
     return {
@@ -72,7 +74,7 @@ function buildInitialState(
     date: initialDate ? toIsoDate(initialDate) : toIsoDate(new Date()),
     startTime: initialTime ?? "09:00",
     durationMinutes: 60,
-    tagId: null,
+    tagId: initialTagId ?? null,
     type: "theory",
     priority: "medium",
     description: "",
@@ -86,6 +88,7 @@ function isValidDuration(value: number): boolean {
 export function EventModal({
   event,
   initialDate,
+  initialTagId,
   initialTime,
   onClose,
   onDeleted,
@@ -94,7 +97,7 @@ export function EventModal({
 }: EventModalProps) {
   const { tags, getTagById } = useTags();
   const [form, setForm] = useState<EventFormState>(() =>
-    buildInitialState(event, initialDate, initialTime),
+    buildInitialState(event, initialDate, initialTime, initialTagId),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -103,9 +106,9 @@ export function EventModal({
       return;
     }
 
-    setForm(buildInitialState(event, initialDate, initialTime));
+    setForm(buildInitialState(event, initialDate, initialTime, initialTagId));
     setIsSubmitting(false);
-  }, [event, initialDate, initialTime, open]);
+  }, [event, initialDate, initialTagId, initialTime, open]);
 
   const isEditMode = Boolean(event);
   const isValid =

@@ -100,3 +100,22 @@ pub struct ImportedPlanning {
     pub events: Vec<StudyEvent>,
     pub warnings: Vec<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TagViewOptions {
+    pub upcoming_only: bool,
+    pub include_inbox: bool,
+    pub inbox_only: Option<bool>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TagStats {
+    pub total_events: i64,
+    pub total_minutes: i64,
+    pub completed_count: i64,
+    pub next_event_date: Option<String>,
+}
