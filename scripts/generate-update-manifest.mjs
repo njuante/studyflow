@@ -3,6 +3,16 @@ import { resolve } from "path";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = pkg.version;
+const tagVersion = (process.env.GITHUB_REF_NAME || "").replace(/^v/, "");
+
+if (tagVersion && tagVersion !== version) {
+  console.error(
+    `El tag v${tagVersion} no coincide con package.json ${version}. ` +
+      "Actualiza package.json, src-tauri/Cargo.toml y src-tauri/tauri.conf.json antes de publicar.",
+  );
+  process.exit(1);
+}
+
 const bundleDir = resolve("src-tauri/target/release/bundle/nsis");
 const files = readdirSync(bundleDir);
 
