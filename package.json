@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "icons:build": "node scripts/build-icons.mjs && tauri icon ./src-tauri/icons/icon.png"
+    "icons:build": "node scripts/build-icons.mjs && tauri icon ./src-tauri/icons/icon.png",
+    "badges:build": "node scripts/generate-badges.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

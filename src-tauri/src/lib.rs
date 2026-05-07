@@ -51,7 +51,8 @@ pub fn run() {
             commands::close_focus_window,
             commands::get_current_event,
             commands::get_next_event,
-            commands::get_event_by_id
+            commands::get_event_by_id,
+            commands::update_taskbar_badge
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

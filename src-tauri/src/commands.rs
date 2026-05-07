@@ -1,6 +1,7 @@
 use chrono::Local;
 use tauri::{
-    AppHandle, Emitter, LogicalPosition, Manager, State, WebviewWindow, WebviewWindowBuilder,
+    image::Image, path::BaseDirectory, AppHandle, Emitter, LogicalPosition, Manager, State,
+    WebviewWindow, WebviewWindowBuilder,
 };
 
 use crate::{
@@ -425,4 +426,38 @@ pub async fn get_event_by_id(
         .map_err(|_| AppError::State("database connection lock poisoned".into()))?;
 
     db::get_event_by_id(&connection, &id)
+}
+
+#[tauri::command]
+pub async fn update_taskbar_badge(app: AppHandle, count: i64) -> Result<(), AppError> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| AppError::State("main window not found".into()))?;
+
+    if count <= 0 {
+        window
+            .set_overlay_icon(None)
+            .map_err(|error| AppError::State(error.to_string()))?;
+        return Ok(());
+    }
+
+    let badge_name = if count >= 9 {
+        "9plus".to_string()
+    } else {
+        count.to_string()
+    };
+    let resource_path = app
+        .path()
+        .resolve(
+            format!("icons/badge/{badge_name}.png"),
+            BaseDirectory::Resource,
+        )
+        .map_err(|error| AppError::Path(error.to_string()))?;
+    let icon = Image::from_path(&resource_path)
+        .map_err(|error| AppError::State(error.to_string()))?;
+    window
+        .set_overlay_icon(Some(icon))
+        .map_err(|error| AppError::State(error.to_string()))?;
+
+    Ok(())
 }

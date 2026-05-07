@@ -34,7 +34,9 @@ import { Titlebar } from "./components/Titlebar";
 import { Toast } from "./components/Toast";
 import { TodayView } from "./components/today/TodayView";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { useEventStartNotifier } from "./hooks/useEventStartNotifier";
 import { useTags } from "./hooks/useTags";
+import { useTaskbarBadge } from "./hooks/useTaskbarBadge";
 import { useTheme } from "./hooks/useTheme";
 import { useToast } from "./hooks/useToast";
 import {
@@ -720,6 +722,19 @@ function App() {
         : events,
     [events, tagFilterId],
   );
+
+  const todayPending = useMemo(() => {
+    const todayIso = toIsoDate(new Date());
+    return events.filter(
+      (event) =>
+        event.scheduled &&
+        !event.completed &&
+        event.date === todayIso,
+    ).length;
+  }, [events]);
+
+  useTaskbarBadge(todayPending);
+  useEventStartNotifier(events);
 
   useEffect(() => {
     if (tagFilterId && !tagFilter) {

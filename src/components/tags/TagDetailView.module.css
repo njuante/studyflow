@@ -190,11 +190,11 @@
   align-items: flex-start;
   gap: 8px;
   margin: 8px 0 16px;
-  --heatmap-empty: rgba(0, 0, 0, 0.04);
+  --heatmap-empty: rgba(120, 120, 128, 0.16);
 }
 
 :global([data-theme="dark"]) .heatmapWrap {
-  --heatmap-empty: rgba(255, 255, 255, 0.05);
+  --heatmap-empty: rgba(255, 255, 255, 0.1);
 }
 
 .heatmapDays {

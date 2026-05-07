@@ -2,12 +2,25 @@
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   grid-template-rows: 44px auto minmax(0, 1fr);
+  width: 100vw;
   height: 100vh;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text-primary);
   overflow: hidden;
   position: relative;
+}
+
+/* Fallback solid bg under the AmbientMesh so rounded corners are visible
+   on Windows 10 / when Mica is not available. */
+.appShell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .titlebar,
