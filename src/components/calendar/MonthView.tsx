@@ -3,6 +3,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { motion, useAnimationControls } from "framer-motion";
 
 import { useTags } from "../../hooks/useTags";
+import { darkenColor, lightenColor } from "../../lib/colorUtils";
 import { getMonthGrid, isSameMonth, isToday, toIsoDate } from "../../lib/dates";
 import { DRAG_CONFIG } from "../../lib/dragConfig";
 import { useMotionPresets } from "../../lib/motion";
@@ -238,6 +239,8 @@ function MonthEventPill({
       ref={setNodeRef}
       style={{
         ["--event-color" as string]: color,
+        ["--event-color-light" as string]: lightenColor(color, 0.15),
+        ["--event-color-dark" as string]: darkenColor(color, 0.15),
         x: dragX,
         y: dragY,
         opacity: dragOpacity,

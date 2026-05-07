@@ -18,7 +18,12 @@
       "Bash(npm run *)",
       "Bash(cargo check *)",
       "Bash(cargo add *)",
-      "Bash(echo \"tsc=$?\")"
+      "Bash(echo \"tsc=$?\")",
+      "Bash(curl -fsSL -o public/fonts/JetBrainsMono-Regular.woff2 \"https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/webfonts/JetBrainsMono-Regular.woff2\")",
+      "Bash(curl -fsSL -o public/fonts/JetBrainsMono-Medium.woff2 \"https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/webfonts/JetBrainsMono-Medium.woff2\")",
+      "Bash(curl -fsSL -o public/fonts/InterDisplay-Regular.woff2 \"https://github.com/rsms/inter/raw/master/docs/font-files/InterDisplay-Regular.woff2\")",
+      "Bash(curl -fsSL -o public/fonts/InterDisplay-Medium.woff2 \"https://github.com/rsms/inter/raw/master/docs/font-files/InterDisplay-Medium.woff2\")",
+      "Bash(curl -fsSL -o public/fonts/InterDisplay-SemiBold.woff2 \"https://github.com/rsms/inter/raw/master/docs/font-files/InterDisplay-SemiBold.woff2\")"
     ]
   }
 }

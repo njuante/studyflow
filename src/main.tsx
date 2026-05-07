@@ -8,6 +8,7 @@ import { FocusWindow } from "./windows/FocusWindow";
 import { QuickCaptureWindow } from "./windows/QuickCaptureWindow";
 import "./styles/global.css";
 import "./styles/tokens.css";
+import "./styles/glass.css";
 
 const router = createHashRouter([
   { path: "/", element: <App /> },

@@ -10,6 +10,7 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { motion, useAnimationControls } from "framer-motion";
 
 import { useTags } from "../../hooks/useTags";
+import { darkenColor, lightenColor } from "../../lib/colorUtils";
 import { getWeekDays, isToday, toIsoDate } from "../../lib/dates";
 import { DRAG_CONFIG } from "../../lib/dragConfig";
 import { useMotionPresets } from "../../lib/motion";
@@ -29,7 +30,7 @@ const START_HOUR = 7;
 const END_HOUR = 22;
 const HOUR_HEIGHT = 60;
 const TOTAL_HOURS = END_HOUR - START_HOUR + 1;
-const DAY_NAMES = ["Lun", "Mar", "MiÃ©", "Jue", "Vie", "SÃ¡b", "Dom"];
+const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const NEUTRAL_EVENT_COLOR = "#8e8e93";
 
 function padTimeUnit(value: number): string {
@@ -53,7 +54,7 @@ function formatTimeRange(startTime: string, durationMinutes: number): string {
   const endHours = Math.floor(endTotalMinutes / 60);
   const endMinutes = endTotalMinutes % 60;
 
-  return `${startTime} â€“ ${padTimeUnit(endHours)}:${padTimeUnit(endMinutes)}`;
+  return `${startTime} – ${padTimeUnit(endHours)}:${padTimeUnit(endMinutes)}`;
 }
 
 function roundMinutesToHalfHour(minutes: number): number {
@@ -165,31 +166,18 @@ export function WeekView({
                     onEventResize={onEventResize}
                   />
                 ))}
-
-                {showNowIndicator &&
-                nowWithinRange &&
-                columnIndex === todayColumn ? (
-                  <span
-                    aria-hidden="true"
-                    className={styles.nowLine}
-                    style={{ top: `${nowMinutesFromStart}px` }}
-                  />
-                ) : null}
               </div>
             );
           })}
 
           {showNowIndicator && nowWithinRange ? (
             <div
-              className={styles.nowDotRail}
-              style={{ top: `${nowMinutesFromStart}px` }}
               aria-hidden="true"
+              className={styles.nowIndicator}
+              style={{ top: `${nowMinutesFromStart}px` }}
             >
-              <motion.span
-                className={styles.nowDot}
-                animate={{ scale: [1, 1.15, 1], opacity: [0.85, 1, 0.85] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              />
+              <div className={styles.nowLine} />
+              <div className={styles.nowDot} />
             </div>
           ) : null}
         </div>
@@ -423,6 +411,14 @@ function WeekEventBlock({
       ref={setNodeRef}
       style={{
         ["--event-color" as string]: tag?.color ?? NEUTRAL_EVENT_COLOR,
+        ["--event-color-light" as string]: lightenColor(
+          tag?.color ?? NEUTRAL_EVENT_COLOR,
+          0.15,
+        ),
+        ["--event-color-dark" as string]: darkenColor(
+          tag?.color ?? NEUTRAL_EVENT_COLOR,
+          0.15,
+        ),
         top: `${top}px`,
         height: `${height}px`,
         x: dragX,

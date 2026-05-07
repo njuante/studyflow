@@ -384,9 +384,22 @@ export function TagDetailView({
     const day = addDays(new Date(), index - 14);
     const iso = toIsoDate(day);
     const minutes = heatmapValues.get(iso) ?? 0;
-    const level = minutes === 0 ? 0 : minutes < 60 ? 1 : minutes < 180 ? 2 : 3;
+    let level: 0 | 1 | 2 | 3 | 4;
+    if (minutes === 0) level = 0;
+    else if (minutes < 60) level = 1;
+    else if (minutes < 120) level = 2;
+    else if (minutes < 240) level = 3;
+    else level = 4;
     return { iso, level, label: formatDate(iso), minutes };
   });
+
+  const HEATMAP_OPACITIES: Record<0 | 1 | 2 | 3 | 4, number> = {
+    0: 0,
+    1: 0.2,
+    2: 0.4,
+    3: 0.7,
+    4: 1,
+  };
 
   return (
     <section className={styles.view}>
@@ -481,15 +494,33 @@ export function TagDetailView({
         />
       </div>
 
-      <div className={styles.heatmap}>
-        {heatmapDays.map((day) => (
-          <span
-            className={styles.heatCell}
-            data-level={day.level}
-            key={day.iso}
-            title={`${day.label}: ${formatHours(day.minutes)}`}
-          />
-        ))}
+      <div className={styles.heatmapWrap}>
+        <div className={styles.heatmapDays} aria-hidden="true">
+          {["L", "M", "X", "J", "V", "S", "D"].map((label) => (
+            <span className={styles.heatmapDay} key={label}>
+              {label}
+            </span>
+          ))}
+        </div>
+        <div className={styles.heatmapGrid}>
+          {heatmapDays.map((day) => {
+            const opacity = HEATMAP_OPACITIES[day.level];
+            const background =
+              opacity === 0
+                ? "var(--heatmap-empty)"
+                : `${currentTag.color}${Math.round(opacity * 255)
+                    .toString(16)
+                    .padStart(2, "0")}`;
+            return (
+              <div
+                className={styles.heatmapCell}
+                key={day.iso}
+                style={{ background }}
+                title={`${day.label}: ${formatHours(day.minutes)} dedicadas`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       <div className={styles.tabs}>
@@ -560,6 +591,7 @@ export function TagDetailView({
                     </div>
                     <div className={styles.rowActions}>
                       <button
+                        className={styles.rowAction}
                         onClick={(clickEvent) => {
                           clickEvent.stopPropagation();
                           onEventClick(event);
@@ -569,6 +601,7 @@ export function TagDetailView({
                         Editar
                       </button>
                       <button
+                        className={`${styles.rowAction} ${styles.rowActionSuccess}`}
                         onClick={(clickEvent) => {
                           clickEvent.stopPropagation();
                           void completeEvent(event.id).then(handleEventChanged);
@@ -578,6 +611,7 @@ export function TagDetailView({
                         {event.completed ? "Pendiente" : "Completo"}
                       </button>
                       <button
+                        className={styles.rowAction}
                         onClick={(clickEvent) => {
                           clickEvent.stopPropagation();
                           void clearEventTag(event);

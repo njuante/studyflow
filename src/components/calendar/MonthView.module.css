@@ -4,6 +4,17 @@
   height: 100%;
   min-height: 0;
   gap: 1px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+}
+
+:global([data-theme="dark"]) .monthView {
+  background: rgba(20, 20, 22, 0.55);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .weekdays {
@@ -11,20 +22,27 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   padding: 1px;
-  border-radius: 16px 16px 0 0;
-  background: var(--border-subtle);
+  background: rgba(0, 0, 0, 0.05);
   overflow: hidden;
+}
+
+:global([data-theme="dark"]) .weekdays {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .weekday {
   padding: 8px;
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.3);
   color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: center;
+}
+
+:global([data-theme="dark"]) .weekday {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .grid {
@@ -35,9 +53,12 @@
   flex: 1;
   min-height: 0;
   padding: 1px;
-  border-radius: 0 0 16px 16px;
-  background: var(--border-subtle);
+  background: rgba(0, 0, 0, 0.05);
   overflow: hidden;
+}
+
+:global([data-theme="dark"]) .grid {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .dayCell {
@@ -46,19 +67,27 @@
   gap: 6px;
   min-width: 0;
   padding: 6px;
-  background: var(--bg-primary);
+  background: rgba(255, 255, 255, 0.3);
   transition: background-color 80ms ease;
   cursor: pointer;
 }
 
+:global([data-theme="dark"]) .dayCell {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .dayCell:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+:global([data-theme="dark"]) .dayCell:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .dayCellOver {
   outline: 1px dashed var(--accent);
   outline-offset: -1px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-primary));
+  background: color-mix(in srgb, var(--accent) 8%, rgba(255, 255, 255, 0.4));
 }
 
 .outsideMonth {
@@ -72,8 +101,11 @@
 }
 
 .dayNumber {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
   color: var(--text-secondary);
-  font-size: 12px;
   line-height: 20px;
 }
 
@@ -131,7 +163,12 @@
 }
 
 .eventPill {
-  background: color-mix(in srgb, var(--event-color) 16%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--event-color-light, var(--event-color)) 18%, transparent),
+    color-mix(in srgb, var(--event-color-dark, var(--event-color)) 22%, transparent)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   color: color-mix(in srgb, var(--event-color) 72%, black);
 }
 
@@ -140,12 +177,10 @@
 }
 
 .untaggedEvent {
-  background: #e5e5ea;
   color: var(--text-primary);
 }
 
 :root[data-theme="dark"] .untaggedEvent {
-  background: #3a3a3c;
   color: var(--text-primary);
 }
 

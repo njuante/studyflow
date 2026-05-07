@@ -373,9 +373,9 @@ export function EventModal({
           </label>
 
           {!isValid ? (
-            <p className={styles.validation}>
+            <div className={styles.errorBanner}>
               El título es obligatorio y la duración debe estar entre 5 y 720 min.
-            </p>
+            </div>
           ) : null}
         </div>
 

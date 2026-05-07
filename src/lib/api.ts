@@ -64,14 +64,23 @@ export function getEventsInRange(
 }
 
 function normalizeEvent(event: StudyEvent): StudyEvent {
+  const now = new Date().toISOString();
   return {
-    ...event,
+    id: event.id ?? crypto.randomUUID(),
+    title: event.title ?? "",
     description: event.description ?? "",
+    date: event.date,
+    startTime: event.startTime,
+    durationMinutes: event.durationMinutes,
     tagId: event.tagId ?? null,
+    type: event.type ?? "theory",
+    priority: event.priority ?? "medium",
     scheduled: event.scheduled ?? true,
     completed: event.completed ?? false,
     completedAt: event.completedAt ?? null,
     lockDuringFocus: event.lockDuringFocus ?? false,
+    createdAt: event.createdAt ?? now,
+    updatedAt: event.updatedAt ?? now,
   };
 }
 

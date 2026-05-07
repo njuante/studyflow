@@ -27,6 +27,7 @@ pub fn init_db<R: Runtime>(app: &AppHandle<R>) -> Result<Connection, AppError> {
 
     let db_path = app_data_dir.join("studyflow.db");
     let connection = Connection::open(db_path)?;
+    connection.pragma_update(None, "encoding", "UTF-8")?;
     connection.execute_batch("PRAGMA foreign_keys = ON;")?;
 
     create_tags_table(&connection)?;
@@ -127,11 +128,6 @@ fn migrate_events_table(connection: &Connection) -> Result<(), AppError> {
     let has_old_tag = column_exists(connection, "events", "tag")?;
     let has_tag_id = column_exists(connection, "events", "tag_id")?;
 
-    if !has_old_tag && has_tag_id {
-        create_events_table(connection)?;
-        return Ok(());
-    }
-
     if has_old_tag && !has_tag_id {
         seed_default_tags_if_empty(connection)?;
         connection.execute_batch(
@@ -191,24 +187,19 @@ fn migrate_events_table(connection: &Connection) -> Result<(), AppError> {
         )?;
     }
 
-    if !column_exists(connection, "events", "scheduled")? {
-        connection
-            .execute_batch("ALTER TABLE events ADD COLUMN scheduled INTEGER NOT NULL DEFAULT 1;")?;
-    }
-
-    if !column_exists(connection, "events", "completed")? {
-        connection
-            .execute_batch("ALTER TABLE events ADD COLUMN completed INTEGER NOT NULL DEFAULT 0;")?;
-    }
-
-    if !column_exists(connection, "events", "completed_at")? {
-        connection.execute_batch("ALTER TABLE events ADD COLUMN completed_at TEXT;")?;
-    }
-
-    if !column_exists(connection, "events", "lock_during_focus")? {
-        connection.execute_batch(
-            "ALTER TABLE events ADD COLUMN lock_during_focus INTEGER NOT NULL DEFAULT 0;",
-        )?;
+    let required_columns: &[(&str, &str)] = &[
+        ("description", "TEXT"),
+        ("tag_id", "TEXT"),
+        ("scheduled", "INTEGER NOT NULL DEFAULT 1"),
+        ("completed", "INTEGER NOT NULL DEFAULT 0"),
+        ("completed_at", "TEXT"),
+        ("lock_during_focus", "INTEGER NOT NULL DEFAULT 0"),
+    ];
+    for (column, definition) in required_columns {
+        if !column_exists(connection, "events", column)? {
+            let statement = format!("ALTER TABLE events ADD COLUMN {column} {definition};");
+            connection.execute_batch(&statement)?;
+        }
     }
 
     connection.execute_batch(

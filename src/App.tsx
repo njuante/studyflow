@@ -18,6 +18,7 @@ import {
   unregister,
 } from "@tauri-apps/plugin-global-shortcut";
 
+import { AmbientMesh } from "./components/ambient/AmbientMesh";
 import { ArchiveView } from "./components/archive/ArchiveView";
 import { EventModal } from "./components/calendar/EventModal";
 import { MonthView } from "./components/calendar/MonthView";
@@ -736,6 +737,7 @@ function App() {
       sensors={sensors}
     >
       <div className={styles.appShell} data-theme={theme}>
+      <AmbientMesh dark={theme === "dark"} />
       <div className={styles.titlebar}>
         <Titlebar theme={theme} onToggleTheme={toggleTheme} />
       </div>

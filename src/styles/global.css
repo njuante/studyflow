@@ -14,6 +14,37 @@
   src: url("../assets/fonts/Inter-italic.var.woff2") format("woff2");
 }
 
+@font-face {
+  font-family: "Inter Display";
+  src: url("/fonts/InterDisplay-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter Display";
+  src: url("/fonts/InterDisplay-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter Display";
+  src: url("/fonts/InterDisplay-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
 *,
 *::before,
 *::after {
@@ -29,13 +60,15 @@ body,
 }
 
 html {
-  font-family: var(--font-system);
+  font-family: var(--font-text);
   -webkit-font-smoothing: antialiased;
 }
 
 body {
   background: transparent;
   color: var(--text-primary);
+  font-family: var(--font-text);
+  font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.011em;
   overflow: hidden;
 }
@@ -43,9 +76,21 @@ body {
 h1,
 h2,
 h3,
-h4,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.022em;
+  font-feature-settings: "ss02";
+}
+
 h5,
 h6 {
+  font-feature-settings: "ss01", "cv11";
+}
+
+.tabular,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-feature-settings: "ss01", "cv11";
 }
 
@@ -77,4 +122,55 @@ button {
 
 button:not(:disabled):active {
   transform: scale(0.97);
+}
+
+/* Scrollbars custom estilo macOS */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+[data-theme="dark"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32) !important;
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32) !important;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
